@@ -1,0 +1,10 @@
+.DS_Store
+__pycache__/
+.pytest_cache/
+.streamlit/secrets.toml
+
+# Local conda environment (requested: ./env)
+env/
+./env/
+
+.streamlit/
