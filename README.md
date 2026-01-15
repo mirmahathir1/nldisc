@@ -1,33 +1,5 @@
-## NLDisc — Streamlit App
+# Vue 3 + Vite
 
-This Streamlit app provides an interactive interface for **NLDisc**, a natural-language join discovery system.
+This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
 
-### Setup (local conda env in `./env`)
-
-Create the environment:
-
-```bash
-conda create --prefix ./env python=3.11 -y
-conda activate ./env
-pip install -r requirements.txt
-```
-
-Run the app:
-
-```bash
-streamlit run app.py
-```
-
-### Features
-
-- Upload/use a “data lake” (tables)
-- Run a preprocessing step to build:
-  - semantic type index
-  - join graph
-  - join path index
-- Enter a natural-language query
-- Iteratively pick/edit “query tables” (query-by-example)
-- Confirm a query table and retrieve top join paths
-- Inspect join path details, generated SQL, preview materialized data, and download CSV
-
-
+Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).

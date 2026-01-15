@@ -1,0 +1,46 @@
+html,
+body,
+#app {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+body {
+  margin: 0;
+}
+
+.v-application {
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+/* Global spacing for Vuetify progress indicators. */
+.v-progress-linear,
+.v-progress-circular {
+  margin: 10px !important;
+}
+
+/* Shared transition used when new sections/cards mount (preprocess, query tables, results). */
+.mount-pop-enter-active,
+.mount-pop-leave-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+  will-change: opacity, transform;
+}
+
+.mount-pop-enter-from,
+.mount-pop-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.mount-pop-move {
+  transition: transform 0.22s ease;
+}
