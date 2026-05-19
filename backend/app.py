@@ -6,6 +6,7 @@ from flask_cors import CORS
 from backend.api.responses import error_response
 from backend.config import BackendConfig, load_config
 from backend.services.datalake import DataLakeError, DataLakeService
+from backend.services.join_search import build_join_search_service
 from backend.services.preprocessing import build_preprocessing_service
 from backend.services.query_tables import build_query_table_service
 
@@ -18,15 +19,17 @@ def create_app(config: BackendConfig | None = None) -> Flask:
     app.config["DATALAKE_SERVICE"] = datalake_service
     app.config["PREPROCESSING_SERVICE"] = build_preprocessing_service(backend_config, datalake_service)
     app.config["QUERY_TABLE_SERVICE"] = build_query_table_service(backend_config, datalake_service)
+    app.config["JOIN_SEARCH_SERVICE"] = build_join_search_service(backend_config, datalake_service)
 
     CORS(app, origins=backend_config.cors_origins)
 
-    from backend.api import datalakes, health, preprocess, query_tables
+    from backend.api import datalakes, health, join_search, preprocess, query_tables
 
     app.register_blueprint(health.bp, url_prefix="/api")
     app.register_blueprint(datalakes.bp, url_prefix="/api")
     app.register_blueprint(preprocess.bp, url_prefix="/api")
     app.register_blueprint(query_tables.bp, url_prefix="/api")
+    app.register_blueprint(join_search.bp, url_prefix="/api")
 
     @app.errorhandler(DataLakeError)
     def handle_datalake_error(exc: DataLakeError):
