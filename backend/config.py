@@ -25,6 +25,7 @@ class BackendConfig:
     cors_origins: list[str]
     llm_temperature: float = 0.0
     metadata_schema_version: str = "phase2-v1"
+    embedding_model: str = "sentence-transformers/all-mpnet-base-v2"
 
 
 def _split_origins(value: str) -> list[str]:
@@ -49,4 +50,5 @@ def load_config() -> BackendConfig:
         cors_origins=_split_origins(os.getenv("CORS_ORIGINS", "*")),
         llm_temperature=float(os.getenv("OPENAI_TEMPERATURE", "0")),
         metadata_schema_version=os.getenv("METADATA_SCHEMA_VERSION", "phase2-v1"),
+        embedding_model=os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-mpnet-base-v2"),
     )
