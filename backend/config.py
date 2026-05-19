@@ -23,6 +23,8 @@ class BackendConfig:
     openai_model: str
     sample_row_limit: int
     cors_origins: list[str]
+    llm_temperature: float = 0.0
+    metadata_schema_version: str = "phase2-v1"
 
 
 def _split_origins(value: str) -> list[str]:
@@ -42,8 +44,9 @@ def load_config() -> BackendConfig:
         project_root=PROJECT_ROOT,
         datalake_dir=datalake_dir,
         preprocessed_dir=preprocessed_dir,
-        openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1"),
+        openai_model=os.getenv("OPENAI_MODEL", "gpt-5.5"),
         sample_row_limit=int(os.getenv("SUMMARY_SAMPLE_ROW_LIMIT", "5")),
         cors_origins=_split_origins(os.getenv("CORS_ORIGINS", "*")),
+        llm_temperature=float(os.getenv("OPENAI_TEMPERATURE", "0")),
+        metadata_schema_version=os.getenv("METADATA_SCHEMA_VERSION", "phase2-v1"),
     )
-

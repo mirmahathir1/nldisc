@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+from collections import Counter
 import hashlib
 import re
 from dataclasses import dataclass
@@ -50,6 +51,10 @@ class DataLakeService:
             "tables": tables,
         }
 
+    def table_profiles(self, name: str, sample_limit: int = 5, value_limit: int = 8) -> list[dict[str, Any]]:
+        lake_path = self.resolve_lake(name)
+        return [self._table_profile(csv_path, sample_limit, value_limit) for csv_path in sorted(lake_path.glob("*.csv"))]
+
     def resolve_lake(self, name: str) -> Path:
         if not name or not _SAFE_LAKE_NAME.fullmatch(name):
             raise InvalidDataLakeName(f"Invalid data lake name: {name!r}")
@@ -87,6 +92,40 @@ class DataLakeService:
             "file_hash": sha256_file(csv_path),
         }
 
+    def _table_profile(self, csv_path: Path, sample_limit: int, value_limit: int) -> dict[str, Any]:
+        columns: list[str] = []
+        sample_rows: list[dict[str, str]] = []
+        counters: dict[str, Counter[str]] = {}
+        row_count = 0
+
+        with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
+            reader = csv.DictReader(handle)
+            columns = list(reader.fieldnames or [])
+            counters = {column: Counter() for column in columns}
+            for row in reader:
+                row_count += 1
+                if len(sample_rows) < sample_limit:
+                    sample_rows.append({column: row.get(column, "") for column in columns})
+                for column in columns:
+                    value = str(row.get(column, "")).strip()
+                    if value:
+                        counters[column][value] += 1
+
+        top_values = {
+            column: [value for value, _count in counters[column].most_common(value_limit)]
+            for column in columns
+        }
+
+        return {
+            "name": csv_path.stem,
+            "file_name": csv_path.name,
+            "columns": columns,
+            "row_count": row_count,
+            "sample_rows": sample_rows,
+            "top_values": top_values,
+            "file_hash": sha256_file(csv_path),
+        }
+
 
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
@@ -94,4 +133,3 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
