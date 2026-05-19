@@ -76,6 +76,12 @@ Expected `backend/requirements.txt` dependency groups:
 
 The backend should run inside a project-local prefixed conda environment, for example `backend/.conda`, with pip installing `backend/requirements.txt` into that environment. Because the pip installation may take a long time, especially for embedding and indexing dependencies, the implementation should prepare the exact setup commands but hand off the actual pip install execution to the user to run manually.
 
+Execution convention:
+
+- Use `backend/.conda/bin/python` as the Python interpreter for every backend command that executes Python code, including app startup, scripts, migrations, one-off smoke checks, and tests.
+- Prefer commands such as `backend/.conda/bin/python -m backend.app`, `backend/.conda/bin/python -m pytest backend/tests`, and `backend/.conda/bin/python -m pip install -r backend/requirements.txt`.
+- Avoid relying on shell activation or `conda run` in plan verification commands unless there is a specific reason; direct interpreter execution is more predictable in this repository environment.
+
 ## 5. Preprocessed Artifact Layout
 
 All repeated work is stored under `preprocessed_data/<datalake>/`.
@@ -418,10 +424,13 @@ Each phase below should end with a runnable or testable checkpoint. Later phases
 
 References: Sections 2, 4, 5, 6.1, 9, 10.1, and 12.
 
+Python interpreter for backend execution: `backend/.conda/bin/python`.
+
 Scope:
 
 - Create the Flask backend skeleton, configuration loader, `.env` loading, CORS policy, and `backend/requirements.txt`.
 - Add the project-local conda environment setup instructions or scripts, including exact pip install commands that are handed off to the user for manual execution because installation may take substantial time.
+- Document that backend execution commands should use `backend/.conda/bin/python` directly as the Python interpreter.
 - Implement `GET /api/health`, `GET /api/datalakes`, and `GET /api/datalakes/<name>/summary`.
 - Implement CSV loading, table summaries, column lists, row counts, sample rows, and file hashes.
 
@@ -436,6 +445,8 @@ Standalone verification:
 ### Phase 2: OpenAI Cache and LLM Metadata Services
 
 References: Sections 3, 5, 6.2, 6.3, 9, 10.1, and 12.
+
+Python interpreter for backend execution: `backend/.conda/bin/python`.
 
 Scope:
 
@@ -458,6 +469,8 @@ Standalone verification:
 
 References: Sections 5, 6.3, 7.2, 9, 10.1, and 12.
 
+Python interpreter for backend execution: `backend/.conda/bin/python`.
+
 Scope:
 
 - Add MPNet embedding support for table descriptions.
@@ -476,6 +489,8 @@ Standalone verification:
 ### Phase 4: Equi-Join Discovery and Join Path Indexing
 
 References: Sections 5, 6.4, 6.5, 6.6, 9, 10.1, and 12.
+
+Python interpreter for backend execution: `backend/.conda/bin/python`.
 
 Scope:
 
@@ -497,6 +512,8 @@ Standalone verification:
 
 References: Sections 5, 6, 9, 10.2, and 12.
 
+Python interpreter for backend execution: `backend/.conda/bin/python`.
+
 Scope:
 
 - Implement `POST /api/preprocess`.
@@ -515,6 +532,8 @@ Standalone verification:
 ### Phase 6: Initial Query Table Suggestion API
 
 References: Sections 3, 6.3, 7.1, 7.2, 9, 10.2, and 12.
+
+Python interpreter for backend execution: `backend/.conda/bin/python`.
 
 Scope:
 
@@ -537,6 +556,8 @@ Standalone verification:
 
 References: Sections 3, 7.3, 9, 10.2, and 12.
 
+Python interpreter for backend execution: `backend/.conda/bin/python`.
+
 Scope:
 
 - Implement `POST /api/query-tables/resubmit`.
@@ -556,6 +577,8 @@ Standalone verification:
 ### Phase 8: Join Search, Deduplication, and Diversification
 
 References: Sections 6.5, 6.6, 7.4, 9, 10.2, and 12.
+
+Python interpreter for backend execution: `backend/.conda/bin/python`.
 
 Scope:
 
@@ -578,6 +601,8 @@ Standalone verification:
 
 References: Sections 6.5, 7.5, 9, 10.1, 10.2, and 12.
 
+Python interpreter for backend execution: `backend/.conda/bin/python`.
+
 Scope:
 
 - Implement selected path metadata lookup.
@@ -597,6 +622,8 @@ Standalone verification:
 ### Phase 10: Frontend Offline Integration
 
 References: Sections 2, 8.1, 8.2, 8.3, 8.5, 9, and 12.
+
+Python interpreter for backend execution during API startup and backend verification: `backend/.conda/bin/python`.
 
 Scope:
 
@@ -619,6 +646,8 @@ Standalone verification:
 
 References: Sections 7.1, 7.2, 7.3, 7.4, 7.5, 8.1, 8.2, 8.4, 8.5, 9, and 12.
 
+Python interpreter for backend execution during API startup and backend verification: `backend/.conda/bin/python`.
+
 Scope:
 
 - Add the `Populate a sample query` dropdown and remove the hardcoded initial natural language query.
@@ -638,6 +667,8 @@ Standalone verification:
 ### Phase 12: Fake Data Removal and End-to-End Acceptance
 
 References: Sections 2, 8.2, 8.5, 10.2, 10.3, and 12.
+
+Python interpreter for backend execution during backend tests, API startup, and end-to-end verification: `backend/.conda/bin/python`.
 
 Scope:
 
@@ -659,7 +690,7 @@ Standalone verification:
 
 ## 12. Acceptance Criteria
 
-- Backend runs from a project-local conda prefix and installs dependencies from `backend/requirements.txt`.
+- Backend runs from a project-local conda prefix, installs dependencies from `backend/requirements.txt`, and uses `backend/.conda/bin/python` as the Python interpreter for backend execution commands.
 - No OpenAI key is exposed to the frontend.
 - All OpenAI calls are cached under hash-named files.
 - Preprocessing writes artifacts under `preprocessed_data/<datalake>`.
