@@ -15,7 +15,7 @@ Your plan should have the following things included.
 
 5) All fake data hardcoded in the code must be removed. You are not allowed to remove any frontend component (showing fake data or not) unless specified in this plan.
 
-6) Implement a completely working backend based on what is required in the UI. You have to look at the current UI and code to make the plan to implement the backend. All backend will be in a backend folder served by a flask API, run by a project-local prefixed conda environment. You have to make sure that the backend implementation will serve necessary information to populate all the components of the UI with real data.
+6) Implement a completely working backend based on what is required in the UI. You have to look at the current UI and code to make the plan to implement the backend. All backend will be in a backend folder served by a flask API, run by a project-local prefixed conda environment. You have to make sure that the backend implementation will serve necessary information to populate all the components of the UI with real data. The code for the backend will be kept under a 'backend' folder. Make sure to write a requirements.txt file as well that will use pip under the conda environment to install dependencies.
 
 7) You need to write test cases for backend only to make sure that the whole NLDisc method works. You may modify the data lake tables to serve your purpose as needed. You may create natural language queries that go well with your implementation of the paper. The test cases that you will write will ultimately be shown in the UI. So make sure that the test cases cover everything without needing a UI, but will be inspired by the UI design and paper.
 
