@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import re
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
+from difflib import SequenceMatcher
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -19,6 +22,12 @@ QUERY_TABLE_INSTRUCTIONS = """Generate candidate query tables for a natural lang
 Use only the provided data lake context. Return the requested number of suggestions.
 Each suggestion should have a clear table name and exactly three example rows.
 Rows should be keyed by human-readable column names. Include semantic types for columns.
+"""
+
+QUERY_TABLE_RESUBMIT_INSTRUCTIONS = """Generate revised candidate query tables for a natural language data integration request.
+Use the user's edited query table as feedback about desired columns and example values.
+Use only the provided matched data lake evidence and context tables. Return revised suggestions
+that reflect the edits, especially renamed or newly added columns.
 """
 
 
@@ -85,6 +94,60 @@ class QueryTableService:
             "cache_hit": result.cache_hit,
         }
 
+    def resubmit(
+        self,
+        *,
+        datalake: str,
+        natural_language_query: str,
+        edited_rows: list[dict[str, Any]],
+        prior_selected_table_name: str | None = None,
+        suggestion_count: int = 4,
+        ann_topk: int = 25,
+    ) -> dict[str, Any]:
+        if not natural_language_query.strip():
+            raise ValueError("natural_language_query must not be empty")
+        if not edited_rows:
+            raise ValueError("edited query table rows must not be empty")
+
+        suggestion_count = max(1, int(suggestion_count))
+        ann_topk = max(1, int(ann_topk))
+        self.datalake_service.resolve_lake(datalake)
+
+        edited_table = _edited_table(prior_selected_table_name, edited_rows)
+        evidence = self._candidate_column_evidence(datalake, natural_language_query, edited_rows)
+        context_table_names = _rank_context_tables_from_evidence(evidence, limit=ann_topk)
+        context_tables = self._context_payload_for_names(datalake, context_table_names, natural_language_query)
+
+        result = self.llm.parse_structured(
+            datalake=datalake,
+            task_type="corrected_query_table_resubmission",
+            instructions=QUERY_TABLE_RESUBMIT_INSTRUCTIONS,
+            input_payload={
+                "natural_language_query": natural_language_query,
+                "prior_selected_table_name": prior_selected_table_name,
+                "edited_query_table": edited_table,
+                "suggestion_count": suggestion_count,
+                "candidate_column_evidence": evidence,
+                "context_tables": context_tables,
+            },
+            response_model=QueryTableSuggestionsResponse,
+            temperature=0.0,
+            parameters={"suggestion_count": suggestion_count, "ann_topk": ann_topk},
+        )
+        generated = [_normalize_suggestion(suggestion) for suggestion in result.parsed.suggestions]
+        query_tables = _dedupe_suggestions([edited_table, *generated])[:suggestion_count]
+
+        return {
+            "datalake": datalake,
+            "natural_language_query": natural_language_query,
+            "query_tables": query_tables,
+            "queryTables": query_tables,
+            "candidate_column_evidence": evidence,
+            "candidate_context_tables": context_tables,
+            "cache_key": result.cache_key,
+            "cache_hit": result.cache_hit,
+        }
+
     def _retrieve_context_tables(self, datalake: str, query: str, ann_topk: int) -> list[dict[str, Any]]:
         retrieval = TableDescriptionEmbeddingService(
             self.config.preprocessed_dir,
@@ -124,6 +187,77 @@ class QueryTableService:
                 }
             )
         return context
+
+    def _context_payload_for_names(
+        self,
+        datalake: str,
+        table_names: list[str],
+        natural_language_query: str,
+    ) -> list[dict[str, Any]]:
+        table_descriptions = _read_object(self._artifact_path(datalake, TABLE_DESCRIPTIONS_ARTIFACT))
+        context_matches = [
+            {
+                "table_name": table_name,
+                "description": table_descriptions.get("tables", {}).get(table_name, {}).get("description", ""),
+                "score": _text_similarity(
+                    natural_language_query,
+                    table_descriptions.get("tables", {}).get(table_name, {}).get("description", ""),
+                ),
+            }
+            for table_name in table_names
+        ]
+        return self._context_payload(datalake, context_matches)
+
+    def _candidate_column_evidence(
+        self,
+        datalake: str,
+        natural_language_query: str,
+        edited_rows: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        tables_artifact = _read_object(self._artifact_path(datalake, TABLES_ARTIFACT))
+        semantic_types = _read_object(self._artifact_path(datalake, SEMANTIC_TYPES_ARTIFACT))
+        table_descriptions = _read_object(self._artifact_path(datalake, TABLE_DESCRIPTIONS_ARTIFACT))
+
+        query_columns = _columns_from_rows(edited_rows)
+        query_values = {column: _values_for_column(edited_rows, column) for column in query_columns}
+        evidence: list[dict[str, Any]] = []
+
+        for query_column in query_columns:
+            matches: list[dict[str, Any]] = []
+            for table in tables_artifact.get("tables", []):
+                table_name = table["name"]
+                table_description = table_descriptions.get("tables", {}).get(table_name, {}).get("description", "")
+                table_relevance = _text_similarity(natural_language_query, table_description)
+                semantic_columns = semantic_types.get("tables", {}).get(table_name, {}).get("columns", {})
+                for lake_column in table.get("columns", []):
+                    semantic_type = semantic_columns.get(lake_column, {}).get("semantic_type", lake_column)
+                    name_score = _text_similarity(query_column, lake_column)
+                    semantic_score = max(_text_similarity(query_column, semantic_type), _text_similarity(natural_language_query, semantic_type))
+                    value_score = _value_overlap(query_values[query_column], table.get("top_values", {}).get(lake_column, []))
+                    score = (0.3 * semantic_score) + (0.25 * name_score) + (0.35 * value_score) + (0.1 * table_relevance)
+                    if score <= 0:
+                        continue
+                    matches.append(
+                        {
+                            "query_column": query_column,
+                            "table_name": table_name,
+                            "column": lake_column,
+                            "semantic_type": semantic_type,
+                            "score": round(score, 6),
+                            "evidence": {
+                                "semantic_type_similarity": round(semantic_score, 6),
+                                "column_name_similarity": round(name_score, 6),
+                                "value_overlap": round(value_score, 6),
+                                "table_description_relevance": round(table_relevance, 6),
+                                "edited_values": query_values[query_column][:8],
+                                "sample_values": table.get("top_values", {}).get(lake_column, [])[:8],
+                            },
+                        }
+                    )
+            matches.sort(key=lambda item: (item["score"], item["evidence"]["value_overlap"], item["evidence"]["column_name_similarity"]), reverse=True)
+            evidence.append({"query_column": query_column, "matches": matches[:5]})
+
+        return evidence
 
     def _artifact_path(self, datalake: str, artifact: str) -> Path:
         return self.config.preprocessed_dir / datalake / artifact
@@ -165,9 +299,92 @@ def _normalize_suggestion(suggestion: QueryTableSuggestion) -> dict[str, Any]:
     }
 
 
+def _edited_table(prior_selected_table_name: str | None, edited_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    columns = _columns_from_rows(edited_rows)
+    return {
+        "name": prior_selected_table_name or "Edited Query Table",
+        "columns": columns,
+        "semantic_types": {},
+        "rows": [dict(row) for row in edited_rows],
+        "source": "user_edit",
+    }
+
+
+def _dedupe_suggestions(suggestions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for suggestion in suggestions:
+        key = suggestion.get("name", "")
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(suggestion)
+    return out
+
+
+def _rank_context_tables_from_evidence(evidence: list[dict[str, Any]], *, limit: int) -> list[str]:
+    scores: dict[str, float] = defaultdict(float)
+    for column_evidence in evidence:
+        for match in column_evidence.get("matches", []):
+            scores[match["table_name"]] += float(match["score"])
+    return [table for table, _score in sorted(scores.items(), key=lambda item: item[1], reverse=True)[:limit]]
+
+
+def _columns_from_rows(rows: list[dict[str, Any]]) -> list[str]:
+    columns: list[str] = []
+    for row in rows:
+        for column in row:
+            if column not in columns:
+                columns.append(column)
+    return columns
+
+
+def _values_for_column(rows: list[dict[str, Any]], column: str) -> list[str]:
+    values: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        value = _normalize_value(row.get(column))
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        values.append(value)
+    return values
+
+
+def _value_overlap(query_values: list[str], lake_values: list[Any]) -> float:
+    query_set = {_normalize_value(value) for value in query_values if _normalize_value(value)}
+    lake_set = {_normalize_value(value) for value in lake_values if _normalize_value(value)}
+    if not query_set or not lake_set:
+        return 0.0
+    return len(query_set & lake_set) / min(len(query_set), len(lake_set))
+
+
+def _text_similarity(left: str, right: str) -> float:
+    left_norm = _normalize_text(left)
+    right_norm = _normalize_text(right)
+    if not left_norm or not right_norm:
+        return 0.0
+    left_tokens = set(left_norm.split())
+    right_tokens = set(right_norm.split())
+    token_score = len(left_tokens & right_tokens) / len(left_tokens | right_tokens) if left_tokens and right_tokens else 0.0
+    sequence_score = SequenceMatcher(None, left_norm, right_norm).ratio()
+    substring_bonus = 1.0 if left_norm in right_norm or right_norm in left_norm else 0.0
+    return max(token_score, sequence_score, substring_bonus)
+
+
+def _normalize_text(value: str) -> str:
+    text = re.sub(r"[^a-z0-9]+", " ", str(value).lower())
+    return " ".join(text.split())
+
+
+def _normalize_value(value: Any) -> str:
+    if value is None:
+        return ""
+    return " ".join(str(value).strip().lower().split())
+
+
 def _read_object(path: Path) -> dict[str, Any]:
     payload = read_json(path)
     if not isinstance(payload, dict):
         raise ValueError(f"Expected JSON object at {path}")
     return payload
-

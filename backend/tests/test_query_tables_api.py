@@ -68,22 +68,49 @@ def query_client(tmp_path):
         if response_model == "QueryTableSuggestionsResponse":
             count = payload["suggestion_count"]
             context_names = [table["table_name"] for table in payload["context_tables"]]
-            assert "orders" in context_names
+            is_resubmit = "edited_query_table" in payload
+            assert "orders" in context_names or "edited_query_table" in payload
             assert "products" in context_names or "order_items" in context_names
+            if is_resubmit:
+                evidence_tables = {
+                    match["table_name"]
+                    for column in payload["candidate_column_evidence"]
+                    for match in column["matches"]
+                }
+                assert {"products", "order_items"} <= evidence_tables
+            columns = (
+                [
+                    {"name": "Order ID", "semantic_type": "order identifier"},
+                    {"name": "Product Family", "semantic_type": "product family"},
+                    {"name": "Quantity", "semantic_type": "ordered quantity"},
+                    {"name": "Carrier", "semantic_type": "shipment carrier"},
+                ]
+                if is_resubmit
+                else [
+                    {"name": "Order ID", "semantic_type": "order identifier"},
+                    {"name": "Product", "semantic_type": "ordered product"},
+                    {"name": "Carrier", "semantic_type": "shipment carrier"},
+                ]
+            )
+            rows = (
+                [
+                    {"Order ID": "O100", "Product Family": "Accessories", "Quantity": "1", "Carrier": "DHL"},
+                    {"Order ID": "O101", "Product Family": "Accessories", "Quantity": "2", "Carrier": "UPS"},
+                    {"Order ID": "O102", "Product Family": "Displays", "Quantity": "1", "Carrier": "FedEx"},
+                ]
+                if is_resubmit
+                else [
+                    {"Order ID": "O100", "Product": "Keyboard", "Carrier": "DHL"},
+                    {"Order ID": "O101", "Product": "Mouse", "Carrier": "UPS"},
+                    {"Order ID": "O102", "Product": "Monitor", "Carrier": "FedEx"},
+                ]
+            )
             return {
                 "suggestions": [
                     {
-                        "name": f"Suggested Query Table {idx + 1}",
-                        "columns": [
-                            {"name": "Order ID", "semantic_type": "order identifier"},
-                            {"name": "Product", "semantic_type": "ordered product"},
-                            {"name": "Carrier", "semantic_type": "shipment carrier"},
-                        ],
-                        "rows": [
-                            {"Order ID": "O100", "Product": "Keyboard", "Carrier": "DHL"},
-                            {"Order ID": "O101", "Product": "Mouse", "Carrier": "UPS"},
-                            {"Order ID": "O102", "Product": "Monitor", "Carrier": "FedEx"},
-                        ],
+                        "name": f"{'Revised' if is_resubmit else 'Suggested'} Query Table {idx + 1}",
+                        "columns": columns,
+                        "rows": rows,
                     }
                     for idx in range(count)
                 ]
@@ -181,3 +208,73 @@ def test_query_tables_endpoint_requires_preprocessing_artifacts(query_client):
     assert payload["status"] == "error"
     assert payload["error"]["code"] == "preprocess_artifacts_not_found"
 
+
+def test_query_table_resubmit_preserves_edit_and_returns_evidence(query_client):
+    client, calls = query_client
+    preprocess_response = client.post(
+        "/api/preprocess",
+        json={
+            "datalake": "orders",
+            "params": {
+                "equi_joinability_threshold": 0.9,
+                "max_join_path_length": 4,
+            },
+        },
+    )
+    assert preprocess_response.status_code == 200
+    assert len(calls) == 14
+
+    edited_rows = [
+        {"Order ID": "O100", "product_family": "Accessories", "Quantity": "1", "Carrier": "DHL"},
+        {"Order ID": "O101", "product_family": "Accessories", "Quantity": "2", "Carrier": "UPS"},
+        {"Order ID": "O102", "product_family": "Displays", "Quantity": "1", "Carrier": "FedEx"},
+    ]
+    response = client.post(
+        "/api/query-tables/resubmit",
+        json={
+            "datalake": "orders",
+            "natural_language_query": "Build a table of customers, orders, product families, quantities, and preferred carriers.",
+            "edited_query_table_rows": edited_rows,
+            "prior_selected_table_name": "Edited Product Family Table",
+            "desired_suggestion_count": 3,
+            "ann_topk": 6,
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()["data"]
+    assert data["query_tables"][0]["name"] == "Edited Product Family Table"
+    assert data["query_tables"][0]["rows"] == edited_rows
+    assert data["query_tables"][1]["name"] == "Revised Query Table 1"
+    assert data["cache_hit"] is False
+    assert len(calls) == 15
+
+    evidence_tables = {
+        match["table_name"]
+        for column in data["candidate_column_evidence"]
+        for match in column["matches"]
+    }
+    assert {"products", "order_items"} <= evidence_tables
+
+    product_family_evidence = next(
+        column for column in data["candidate_column_evidence"] if column["query_column"] == "product_family"
+    )
+    assert product_family_evidence["matches"][0]["table_name"] == "products"
+    assert product_family_evidence["matches"][0]["column"] == "product_family"
+
+    cached = client.post(
+        "/api/query-tables/resubmit",
+        json={
+            "datalake": "orders",
+            "natural_language_query": "Build a table of customers, orders, product families, quantities, and preferred carriers.",
+            "edited_query_table_rows": edited_rows,
+            "prior_selected_table_name": "Edited Product Family Table",
+            "desired_suggestion_count": 3,
+            "ann_topk": 6,
+        },
+    )
+    cached_data = cached.get_json()["data"]
+    assert cached.status_code == 200
+    assert cached_data["cache_hit"] is True
+    assert cached_data["query_tables"] == data["query_tables"]
+    assert len(calls) == 15
