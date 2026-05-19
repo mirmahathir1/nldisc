@@ -6,20 +6,24 @@ from flask_cors import CORS
 from backend.api.responses import error_response
 from backend.config import BackendConfig, load_config
 from backend.services.datalake import DataLakeError, DataLakeService
+from backend.services.preprocessing import build_preprocessing_service
 
 
 def create_app(config: BackendConfig | None = None) -> Flask:
     app = Flask(__name__)
     backend_config = config or load_config()
+    datalake_service = DataLakeService(backend_config.datalake_dir)
     app.config["NLDISC_CONFIG"] = backend_config
-    app.config["DATALAKE_SERVICE"] = DataLakeService(backend_config.datalake_dir)
+    app.config["DATALAKE_SERVICE"] = datalake_service
+    app.config["PREPROCESSING_SERVICE"] = build_preprocessing_service(backend_config, datalake_service)
 
     CORS(app, origins=backend_config.cors_origins)
 
-    from backend.api import datalakes, health
+    from backend.api import datalakes, health, preprocess
 
     app.register_blueprint(health.bp, url_prefix="/api")
     app.register_blueprint(datalakes.bp, url_prefix="/api")
+    app.register_blueprint(preprocess.bp, url_prefix="/api")
 
     @app.errorhandler(DataLakeError)
     def handle_datalake_error(exc: DataLakeError):
