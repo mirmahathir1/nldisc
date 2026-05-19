@@ -8,6 +8,7 @@ const props = defineProps({
   tablesList: { type: Array, required: true }, // ["sales_amounts", ...]
   edges: { type: Array, required: true },
   dataLake: { type: Object, default: null },
+  attributes: { type: Array, default: () => [] },
   rowCount: { type: [Number, String], default: undefined }, // undefined -> not computed yet
   selected: { type: Boolean, default: false },
   clickable: { type: Boolean, default: false },
@@ -23,6 +24,7 @@ const length = computed(() => props.tablesList?.length || 0)
 const hops = computed(() => Math.max(0, (props.tablesList?.length || 0) - 1))
 
 const allAttributes = computed(() => {
+  if (props.attributes?.length) return props.attributes
   const lake = props.dataLake || {}
   const out = []
   for (const t of props.tablesList || []) {
@@ -224,4 +226,3 @@ onMounted(() => {
   padding-inline: 6px;
 }
 </style>
-

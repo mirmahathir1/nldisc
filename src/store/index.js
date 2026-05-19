@@ -1,15 +1,12 @@
 import { createStore } from 'vuex'
 
+import { getDatalakeSummary, listDatalakes, preprocessDatalake } from '../api/nldiscApi'
 import {
   applyPredicatesToMaterialized,
-  buildJoinGraph,
-  buildJoinPathIndex,
-  buildSemanticTypeIndex,
   countRowsForPath,
   generateQueryTables,
   findTopJoinPaths,
   inferCandidateTablesFromQueryTable,
-  makeDefaultDataLake,
   materializePath,
   seedFromString,
   sqlForPath,
@@ -45,6 +42,36 @@ function preprocessSignature(dataLake, params) {
     params?.max_join_path_length,
   ].join('|')
   return `${lakeSig}::${pSig}`
+}
+
+function dataLakeFromSummary(summary) {
+  return Object.fromEntries((summary?.tables || []).map((table) => [table.name, table.sample_rows || []]))
+}
+
+function resetPipelineState(state) {
+  state.preprocessed = false
+  state.semanticIndex = null
+  state.joinEdges = null
+  state.joinPathIndex = null
+  state.tableDescriptions = {}
+  state.rowCounts = {}
+  state.preprocessStatus = null
+  state.queryTables = null
+  state.selectedQtName = null
+  state.editedQueryTables = {}
+  state.confirmedQtRows = null
+  state.predicates = []
+  state.requiredTables = []
+  state.topPaths = null
+  state.selectedPathId = null
+  state.selectedPathTables = null
+  state.selectedPathSql = ''
+  state.materializedRows = null
+  state.materializedCsv = ''
+  state.queryTablesSeed = null
+  state.queryTablesPredSig = null
+  state.preprocessExpandedPaths = new Set()
+  state.preprocessRowCounts = {}
 }
 
 function inferQueryTableHintsFromRows(rows) {
@@ -113,7 +140,13 @@ export default createStore({
 
     // Stage 1
     uploadedFiles: [],
+    availableDatalakes: [],
+    dataLakeName: '',
+    dataLakeSummary: null,
     dataLake: null,
+    dataLakeLoading: false,
+    preprocessLoading: false,
+    backendError: '',
 
     // Stage 2
     params: defaultParams(),
@@ -121,6 +154,9 @@ export default createStore({
     semanticIndex: null,
     joinEdges: null,
     joinPathIndex: null, // array of {path_id,tables,tables_list,length,score}
+    tableDescriptions: {},
+    rowCounts: {},
+    preprocessStatus: null,
     preprocessExpandedPaths: new Set(),
     preprocessRowCounts: {}, // key: `${sig}::${pathId}` -> count
 
@@ -161,9 +197,9 @@ export default createStore({
       return fallback?.rows ? fallback.rows.map((r) => ({ ...r })) : []
     },
     selectedEditedRows: (state, getters) => getters.editedRowsFor(state.selectedQtName),
-    canGoStage2: (state) => Boolean(state.dataLake),
-    canGoStage3: (state) => Boolean(state.dataLake && state.preprocessed),
-    canGoStage4: (state) => Boolean(state.dataLake && state.preprocessed && state.confirmedQtRows),
+    canGoStage2: (state) => Boolean(state.dataLakeName && state.dataLake),
+    canGoStage3: (state) => Boolean(state.dataLakeName && state.dataLake && state.preprocessed),
+    canGoStage4: (state) => Boolean(state.dataLakeName && state.dataLake && state.preprocessed && state.confirmedQtRows),
   },
 
   mutations: {
@@ -175,39 +211,52 @@ export default createStore({
       state.uploadedFiles = files || []
     },
 
-    loadDefaultDataLake(state) {
-      state.dataLake = makeDefaultDataLake(7)
-      // Reset pipeline state
-      state.preprocessed = false
-      state.semanticIndex = null
-      state.joinEdges = null
-      state.joinPathIndex = null
-      state.queryTables = null
-      state.selectedQtName = null
-      state.editedQueryTables = {}
-      state.confirmedQtRows = null
-      state.predicates = []
-      state.requiredTables = []
-      state.topPaths = null
-      state.selectedPathId = null
-      state.selectedPathTables = null
-      state.selectedPathSql = ''
-      state.materializedRows = null
-      state.materializedCsv = ''
-      state.queryTablesSeed = null
-      state.queryTablesPredSig = null
-      state.preprocessExpandedPaths = new Set()
-      state.preprocessRowCounts = {}
+    setBackendError(state, message) {
+      state.backendError = message || ''
+    },
+
+    setDatalakeLoading(state, loading) {
+      state.dataLakeLoading = Boolean(loading)
+    },
+
+    setPreprocessLoading(state, loading) {
+      state.preprocessLoading = Boolean(loading)
+    },
+
+    setAvailableDatalakes(state, datalakes) {
+      state.availableDatalakes = datalakes || []
+    },
+
+    setPendingDatalake(state, name) {
+      state.dataLakeName = name || ''
+      state.dataLakeSummary = null
+      state.dataLake = null
+      resetPipelineState(state)
+    },
+
+    setSelectedDatalakeSummary(state, { name, summary }) {
+      state.dataLakeName = name || ''
+      state.dataLakeSummary = summary || null
+      state.dataLake = dataLakeFromSummary(summary)
+      state.uploadedFiles = []
+      resetPipelineState(state)
     },
 
     setParams(state, params) {
+      const previous = JSON.stringify(state.params)
       state.params = { ...state.params, ...(params || {}) }
+      if (state.preprocessed && previous !== JSON.stringify(state.params)) {
+        resetPipelineState(state)
+      }
     },
 
-    setPreprocessedArtifacts(state, { semanticIndex, joinEdges, joinPathIndex }) {
+    setPreprocessedArtifacts(state, { semanticIndex, joinEdges, joinPathIndex, tableDescriptions, rowCounts, preprocessStatus }) {
       state.semanticIndex = semanticIndex
       state.joinEdges = joinEdges
       state.joinPathIndex = joinPathIndex
+      state.tableDescriptions = tableDescriptions || {}
+      state.rowCounts = rowCounts || {}
+      state.preprocessStatus = preprocessStatus || null
       state.preprocessed = true
       // Reset later stages
       state.queryTables = null
@@ -400,13 +449,53 @@ export default createStore({
   },
 
   actions: {
-    preprocess({ state, commit }) {
-      if (!state.dataLake) return
-      const semanticIndex = buildSemanticTypeIndex(state.dataLake, seedFromString('semantic'))
-      const joinEdges = buildJoinGraph(state.params)
-      const joinPathIndex = buildJoinPathIndex(joinEdges, Number(state.params.max_join_path_length || 5))
-      commit('setPreprocessedArtifacts', { semanticIndex, joinEdges, joinPathIndex })
-      if (state.stage < 2) commit('setStage', 2)
+    async loadDatalakes({ commit }) {
+      commit('setDatalakeLoading', true)
+      commit('setBackendError', '')
+      try {
+        commit('setAvailableDatalakes', await listDatalakes())
+      } catch (err) {
+        commit('setBackendError', err?.message || 'Unable to load data lakes.')
+      } finally {
+        commit('setDatalakeLoading', false)
+      }
+    },
+
+    async selectDataLake({ commit }, name) {
+      if (!name) return
+      commit('setDatalakeLoading', true)
+      commit('setBackendError', '')
+      commit('setPendingDatalake', name)
+      try {
+        const summary = await getDatalakeSummary(name)
+        commit('setSelectedDatalakeSummary', { name, summary })
+      } catch (err) {
+        commit('setBackendError', err?.message || 'Unable to load data lake summary.')
+      } finally {
+        commit('setDatalakeLoading', false)
+      }
+    },
+
+    async preprocess({ state, commit }) {
+      if (!state.dataLakeName) return
+      commit('setPreprocessLoading', true)
+      commit('setBackendError', '')
+      try {
+        const artifacts = await preprocessDatalake(state.dataLakeName, state.params)
+        commit('setPreprocessedArtifacts', {
+          semanticIndex: artifacts?.semantic_types || {},
+          joinEdges: artifacts?.join_edges || [],
+          joinPathIndex: artifacts?.join_paths || [],
+          tableDescriptions: artifacts?.table_descriptions || {},
+          rowCounts: artifacts?.row_counts || {},
+          preprocessStatus: artifacts?.preprocessing || null,
+        })
+        if (state.stage < 2) commit('setStage', 2)
+      } catch (err) {
+        commit('setBackendError', err?.message || 'Unable to run preprocessing.')
+      } finally {
+        commit('setPreprocessLoading', false)
+      }
     },
 
     maybeComputeRowCount({ state, commit }, { pathId, pathTables }) {
@@ -490,4 +579,3 @@ export default createStore({
     },
   },
 })
-
