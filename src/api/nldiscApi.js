@@ -44,3 +44,84 @@ export async function preprocessDatalake(name, params, { force = false } = {}) {
 export async function getPreprocessArtifacts(name) {
   return request(`/preprocess/${encodeURIComponent(name)}/artifacts`)
 }
+
+export async function getSampleQueries(name) {
+  const data = await request(`/sample-queries?datalake=${encodeURIComponent(name)}`)
+  return data?.queries || []
+}
+
+export async function generateQueryTables({ datalake, nlQuery, suggestionCount = 4, annTopk = 25 }) {
+  return request('/query-tables', {
+    method: 'POST',
+    body: JSON.stringify({
+      datalake,
+      natural_language_query: nlQuery,
+      desired_suggestion_count: suggestionCount,
+      ann_topk: annTopk,
+    }),
+  })
+}
+
+export async function resubmitQueryTables({
+  datalake,
+  nlQuery,
+  editedRows,
+  priorSelectedTableName,
+  suggestionCount = 4,
+  annTopk = 25,
+}) {
+  return request('/query-tables/resubmit', {
+    method: 'POST',
+    body: JSON.stringify({
+      datalake,
+      natural_language_query: nlQuery,
+      edited_query_table_rows: editedRows,
+      prior_selected_table_name: priorSelectedTableName,
+      desired_suggestion_count: suggestionCount,
+      ann_topk: annTopk,
+    }),
+  })
+}
+
+export async function joinSearch({ datalake, nlQuery, confirmedRows, topK = 5, dedupThreshold = 0.8 }) {
+  return request('/join-search', {
+    method: 'POST',
+    body: JSON.stringify({
+      datalake,
+      natural_language_query: nlQuery,
+      confirmed_query_table_rows: confirmedRows,
+      top_k: topK,
+      dedup_threshold: dedupThreshold,
+    }),
+  })
+}
+
+export async function getJoinPathMetadata(pathId, datalake) {
+  return request(`/join-paths/${encodeURIComponent(pathId)}?datalake=${encodeURIComponent(datalake)}`)
+}
+
+export async function getJoinPathSql(pathId, datalake) {
+  return request(`/join-paths/${encodeURIComponent(pathId)}/sql?datalake=${encodeURIComponent(datalake)}`)
+}
+
+export async function materializeJoinPath(pathId, datalake, limit = 50) {
+  return request(
+    `/join-paths/${encodeURIComponent(pathId)}/materialize?datalake=${encodeURIComponent(datalake)}&limit=${encodeURIComponent(limit)}`,
+  )
+}
+
+export async function getJoinPathCsv(pathId, datalake) {
+  const response = await fetch(
+    `${API_BASE_URL}/join-paths/${encodeURIComponent(pathId)}/csv?datalake=${encodeURIComponent(datalake)}`,
+    { headers: { Accept: 'text/csv' } },
+  )
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    const message = payload?.error?.message || `Request failed with status ${response.status}`
+    const error = new Error(message)
+    error.status = response.status
+    error.code = payload?.error?.code || 'request_failed'
+    throw error
+  }
+  return response.text()
+}

@@ -15,6 +15,15 @@ from backend.services.llm import OpenAIResponsesLLM
 SEMANTIC_TYPES_ARTIFACT = "semantic_types.json"
 SEMANTIC_TYPES_SCHEMA_VERSION = "semantic-types-v1"
 
+# Caps applied to the LLM input payload. Big top_values / sample_rows blocks
+# inflate both the prompt and the structured response: gpt-4.1's default
+# `responses.parse` output cap can truncate the reply mid-JSON for wide tables,
+# producing pydantic ValidationError. Combined with the brevity guidance in the
+# instructions, these caps keep the response comfortably under the cap.
+_TRIM_TOP_VALUES = 4
+_TRIM_SAMPLE_ROWS = 2
+_TRIM_VALUE_CHARS = 40
+
 
 class ColumnSemanticType(BaseModel):
     column: str = Field(description="Exact source column name when possible.")
@@ -28,9 +37,13 @@ class TableSemanticTypesResponse(BaseModel):
 
 
 SEMANTIC_TYPE_INSTRUCTIONS = """Extract semantic types for CSV columns.
-Return one entry per column. Use concise semantic types such as order identifier,
-customer country code, product family, quantity, carrier name, or date.
-Use only the columns provided in the input and include representative examples.
+Return exactly one entry per provided column — no extras, no duplicates.
+Use concise semantic types (e.g. order identifier, customer country code,
+product family, quantity, carrier name, date).
+Each entry's `examples` array must contain AT MOST 2 short representative
+values copied verbatim from the input (each value ≤ 30 characters). Do not
+pad strings with whitespace, do not invent values, and stop immediately
+once every input column has one entry.
 """
 
 
@@ -76,8 +89,8 @@ class SemanticTypeService:
         return {
             "table_name": profile["name"],
             "columns": profile["columns"],
-            "top_values": profile.get("top_values", {}),
-            "sample_rows": profile.get("sample_rows", []),
+            "top_values": _trim_top_values(profile.get("top_values", {})),
+            "sample_rows": _trim_sample_rows(profile.get("sample_rows", [])),
         }
 
     def _normalize_table(
@@ -123,6 +136,38 @@ class SemanticTypeService:
 
 def _normalize_name(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", str(value).lower())
+
+
+def _trim_value(value: Any) -> str:
+    text = "" if value is None else str(value)
+    # Collapse whitespace so embedded \r / \n / tabs can't seed model loops.
+    text = " ".join(text.split())
+    if len(text) > _TRIM_VALUE_CHARS:
+        return text[:_TRIM_VALUE_CHARS] + "…"
+    return text
+
+
+def _trim_top_values(top_values: dict[str, Any]) -> dict[str, list[str]]:
+    if not isinstance(top_values, dict):
+        return {}
+    out: dict[str, list[str]] = {}
+    for column, values in top_values.items():
+        if not isinstance(values, list):
+            continue
+        trimmed: list[str] = []
+        for value in values[:_TRIM_TOP_VALUES]:
+            trimmed.append(_trim_value(value))
+        out[str(column)] = trimmed
+    return out
+
+
+def _trim_sample_rows(sample_rows: list[Any]) -> list[dict[str, str]]:
+    out: list[dict[str, str]] = []
+    for row in (sample_rows or [])[:_TRIM_SAMPLE_ROWS]:
+        if not isinstance(row, dict):
+            continue
+        out.append({str(column): _trim_value(value) for column, value in row.items()})
+    return out
 
 
 def _clean_text(value: str) -> str:

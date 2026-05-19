@@ -1,17 +1,18 @@
 import { createStore } from 'vuex'
 
-import { getDatalakeSummary, listDatalakes, preprocessDatalake } from '../api/nldiscApi'
 import {
-  applyPredicatesToMaterialized,
-  countRowsForPath,
-  generateQueryTables,
-  findTopJoinPaths,
-  inferCandidateTablesFromQueryTable,
-  materializePath,
-  seedFromString,
-  sqlForPath,
-  toCSV,
-} from '../lib/nldisc'
+  generateQueryTables as apiGenerateQueryTables,
+  getDatalakeSummary,
+  getJoinPathCsv,
+  getJoinPathMetadata,
+  getJoinPathSql,
+  getSampleQueries,
+  joinSearch as apiJoinSearch,
+  listDatalakes,
+  materializeJoinPath,
+  preprocessDatalake,
+  resubmitQueryTables as apiResubmitQueryTables,
+} from '../api/nldiscApi'
 
 function defaultParams() {
   return {
@@ -25,9 +26,17 @@ function defaultParams() {
   }
 }
 
-function predSignature(preds) {
-  if (!preds?.length) return ''
-  return preds.map((p) => `${p?.field || ''}|${p?.op || ''}|${p?.value || ''}`).join(';')
+function normalizeQueryTables(rawTables) {
+  return (Array.isArray(rawTables) ? rawTables : [])
+    .filter((qt) => qt && typeof qt === 'object')
+    .map((qt) => ({
+      name: String(qt.name ?? 'Query Table'),
+      columns: Array.isArray(qt.columns) ? qt.columns : [],
+      semantic_types: qt.semantic_types || {},
+      rows: (Array.isArray(qt.rows) ? qt.rows : [])
+        .filter((row) => row && typeof row === 'object')
+        .map((row) => ({ ...row })),
+    }))
 }
 
 function preprocessSignature(dataLake, params) {
@@ -74,54 +83,6 @@ function resetPipelineState(state) {
   state.preprocessRowCounts = {}
 }
 
-function inferQueryTableHintsFromRows(rows) {
-  const rs = Array.isArray(rows) ? rows : []
-  const cols = new Set()
-  for (const r of rs) {
-    for (const k of Object.keys(r || {})) cols.add(k)
-  }
-  const colList = [...cols]
-  const lowerCols = colList.map((c) => String(c).toLowerCase())
-
-  const findCol = (re) => colList[lowerCols.findIndex((c) => re.test(c))] || null
-  const productCol = findCol(/product/)
-  const storeCol = findCol(/store|region/)
-
-  const uniqNonEmptyStrings = (col) => {
-    if (!col) return []
-    const out = []
-    const seen = new Set()
-    for (const r of rs) {
-      const v = r?.[col]
-      const s = String(v ?? '').trim()
-      if (!s) continue
-      const key = s.toLowerCase()
-      if (seen.has(key)) continue
-      seen.add(key)
-      out.push(s)
-      if (out.length >= 8) break
-    }
-    return out
-  }
-
-  const wants_sales = lowerCols.some((c) => c.includes('amount') || c.includes('sales') || c.includes('revenue') || c.includes('currency'))
-  const wants_products = lowerCols.some((c) => c.includes('product'))
-  const wants_store = lowerCols.some((c) => c.includes('store') || c.includes('region'))
-  const wants_quarter = lowerCols.some((c) => c.includes('quarter') || c.includes('year') || c.includes('time'))
-
-  return {
-    signals: { wants_sales, wants_products, wants_store, wants_quarter },
-    columnNames: {
-      product_name: productCol || 'product_name',
-      store_name: storeCol || 'store_name',
-    },
-    samples: {
-      product_names: uniqNonEmptyStrings(productCol),
-      store_names: uniqNonEmptyStrings(storeCol),
-    },
-  }
-}
-
 function ensureSelectedQueryTable(state) {
   if (!state.queryTables?.length) return
   const names = state.queryTables.map((q) => q.name)
@@ -161,7 +122,8 @@ export default createStore({
     preprocessRowCounts: {}, // key: `${sig}::${pathId}` -> count
 
     // Stage 3
-    nlQuery: 'Show me sales data for the past quarters.',
+    nlQuery: '',
+    sampleQueries: [], // [{label, query}] for the selected data lake
     queryTables: null, // [{name, rows}]
     selectedQtName: null,
     editedQueryTables: {}, // name -> edited rows
@@ -288,6 +250,10 @@ export default createStore({
 
     setNlQuery(state, q) {
       state.nlQuery = q
+    },
+
+    setSampleQueries(state, queries) {
+      state.sampleQueries = Array.isArray(queries) ? queries : []
     },
 
     setQueryTables(state, { qts, seed, predSig }) {
@@ -461,18 +427,30 @@ export default createStore({
       }
     },
 
-    async selectDataLake({ commit }, name) {
+    async selectDataLake({ commit, dispatch }, name) {
       if (!name) return
       commit('setDatalakeLoading', true)
       commit('setBackendError', '')
       commit('setPendingDatalake', name)
+      commit('setSampleQueries', [])
       try {
         const summary = await getDatalakeSummary(name)
         commit('setSelectedDatalakeSummary', { name, summary })
+        dispatch('loadSampleQueries', name)
       } catch (err) {
         commit('setBackendError', err?.message || 'Unable to load data lake summary.')
       } finally {
         commit('setDatalakeLoading', false)
+      }
+    },
+
+    async loadSampleQueries({ state, commit }, name) {
+      const datalake = name || state.dataLakeName
+      if (!datalake) return
+      try {
+        commit('setSampleQueries', await getSampleQueries(datalake))
+      } catch (err) {
+        commit('setBackendError', err?.message || 'Unable to load sample queries.')
       }
     },
 
@@ -498,84 +476,116 @@ export default createStore({
       }
     },
 
-    maybeComputeRowCount({ state, commit }, { pathId, pathTables }) {
+    async maybeComputeRowCount({ state, commit }, { pathId }) {
+      if (!pathId || !state.dataLakeName) return
       const sig = preprocessSignature(state.dataLake, state.params)
       const key = `${sig}::${pathId}`
       if (Object.prototype.hasOwnProperty.call(state.preprocessRowCounts, key)) return
+      const known = (state.topPaths || []).find((p) => p?.path_id === pathId)
+      const knownEstimate = known?.row_count_estimate ?? known?.cardinality_estimate
+      if (typeof knownEstimate === 'number') {
+        commit('setPreprocessRowCount', { key, count: knownEstimate })
+        return
+      }
       try {
-        const count = countRowsForPath(state.dataLake, pathTables, state.joinEdges)
+        const data = await getJoinPathMetadata(pathId, state.dataLakeName)
+        const meta = data?.path || data?.join_path || {}
+        const count = meta.row_count_estimate ?? meta.cardinality_estimate ?? -1
         commit('setPreprocessRowCount', { key, count })
       } catch {
         commit('setPreprocessRowCount', { key, count: -1 })
       }
     },
 
-    generateQueryTables({ state, commit }) {
-      const q = state.nlQuery
-      const seed = seedFromString(q) ^ 0xa5a5
-      const predSig = predSignature(state.predicates)
-      const qts = generateQueryTables(q, seed, state.predicates, Number(state.params.query_table_suggestion_count || 4))
-      commit('setQueryTables', { qts, seed, predSig })
+    async generateQueryTables({ state, commit }) {
+      if (!state.dataLakeName) return
+      if (!String(state.nlQuery || '').trim()) return
+      commit('setBackendError', '')
+      try {
+        const data = await apiGenerateQueryTables({
+          datalake: state.dataLakeName,
+          nlQuery: state.nlQuery,
+          suggestionCount: Number(state.params.query_table_suggestion_count || 4),
+          annTopk: Number(state.params.ann_topk || 25),
+        })
+        const qts = normalizeQueryTables(data?.query_tables || data?.queryTables || [])
+        commit('setQueryTables', { qts, seed: null, predSig: '' })
+      } catch (err) {
+        commit('setBackendError', err?.message || 'Unable to generate query tables.')
+      }
     },
 
-    regenerateQueryTablesIfPredicateChanged({ state, commit }) {
-      if (!state.queryTables || state.queryTablesSeed == null) return
-      const curSig = predSignature(state.predicates)
-      if (curSig === (state.queryTablesPredSig || '')) return
-      const qts = generateQueryTables(
-        state.nlQuery,
-        Number(state.queryTablesSeed),
-        state.predicates,
-        Number(state.params.query_table_suggestion_count || 4),
-      )
-      commit('setQueryTables', { qts, seed: Number(state.queryTablesSeed), predSig: curSig })
-    },
-
-    resubmitFromEdits({ state, commit }) {
+    async resubmitFromEdits({ state, commit }) {
       const name = state.selectedQtName
       const rows = (state.editedQueryTables || {})[name] || []
-      if (!rows) return
-      const seed = seedFromString(JSON.stringify(rows)) ^ 0x5a5a
-      const predSig = predSignature(state.predicates)
-      const hints = inferQueryTableHintsFromRows(rows)
-      const qts = generateQueryTables(
-        state.nlQuery,
-        seed,
-        state.predicates,
-        Number(state.params.query_table_suggestion_count || 4),
-        hints,
-      )
-
-      // Keep the user's edited table as the corresponding suggestion so they can confirm it after resubmit.
-      const idx = (qts || []).findIndex((q) => q?.name === name)
-      if (idx >= 0) {
-        qts[idx] = { ...qts[idx], rows: rows.map((r) => ({ ...r })) }
-      } else if (qts?.length) {
-        qts[0] = { ...qts[0], rows: rows.map((r) => ({ ...r })) }
-      }
-      commit('setQueryTables', { qts, seed, predSig })
-    },
-
-    runJoinSearch({ state, commit, dispatch }) {
-      if (!state.confirmedQtRows || !state.joinPathIndex) return
-      const requiredTables = inferCandidateTablesFromQueryTable(state.confirmedQtRows)
-      const k = Math.max(10, Number(state.params.top_k_paths || 5))
-      const topPaths = findTopJoinPaths(state.joinPathIndex, requiredTables, k)
-      commit('setResults', { requiredTables, topPaths })
-      if (topPaths?.[0]) {
-        dispatch('selectPath', topPaths[0].path_id)
+      if (!state.dataLakeName) return
+      if (!Array.isArray(rows) || !rows.length) return
+      commit('setBackendError', '')
+      try {
+        const data = await apiResubmitQueryTables({
+          datalake: state.dataLakeName,
+          nlQuery: state.nlQuery,
+          editedRows: rows,
+          priorSelectedTableName: name,
+          suggestionCount: Number(state.params.query_table_suggestion_count || 4),
+          annTopk: Number(state.params.ann_topk || 25),
+        })
+        const qts = normalizeQueryTables(data?.query_tables || data?.queryTables || [])
+        commit('setQueryTables', { qts, seed: null, predSig: '' })
+        if (name && qts.some((q) => q.name === name)) commit('setSelectedQtName', name)
+      } catch (err) {
+        commit('setBackendError', err?.message || 'Unable to resubmit query tables.')
       }
     },
 
-    selectPath({ state, commit }, pathId) {
-      if (!state.topPaths?.length || !state.dataLake) return
-      const row = state.topPaths.find((r) => r.path_id === pathId) || state.topPaths[0]
-      const pathTables = row.tables_list || String(row.tables).split('→').map((t) => t.trim())
-      const sql = sqlForPath(pathTables, state.joinEdges)
-      const rows0 = materializePath(state.dataLake, pathTables, state.joinEdges, 200)
-      const rows = applyPredicatesToMaterialized(rows0, state.predicates)
-      const csv = toCSV(rows)
-      commit('setSelectedPath', { pathId: row.path_id, pathTables, sql, rows, csv })
+    async runJoinSearch({ state, commit, dispatch }) {
+      if (!state.dataLakeName || !state.confirmedQtRows?.length) return
+      commit('setBackendError', '')
+      try {
+        const data = await apiJoinSearch({
+          datalake: state.dataLakeName,
+          nlQuery: state.nlQuery,
+          confirmedRows: state.confirmedQtRows,
+          topK: Math.max(1, Number(state.params.top_k_paths || 5)),
+          dedupThreshold: 0.8,
+        })
+        const topPaths = data?.join_paths || data?.top_paths || data?.paths || []
+        const requiredTables = data?.required_tables || []
+        commit('setResults', { requiredTables, topPaths })
+        if (topPaths?.[0]) {
+          await dispatch('selectPath', topPaths[0].path_id)
+        }
+      } catch (err) {
+        commit('setBackendError', err?.message || 'Unable to run join search.')
+      }
+    },
+
+    async selectPath({ state, commit }, pathId) {
+      if (!state.topPaths?.length || !state.dataLakeName) return
+      const row = state.topPaths.find((r) => r?.path_id === pathId) || state.topPaths[0]
+      if (!row?.path_id) return
+      const pathTables = Array.isArray(row.tables_list) && row.tables_list.length
+        ? row.tables_list
+        : Array.isArray(row.ordered_tables) ? row.ordered_tables : []
+      // Reflect the selection immediately so the UI highlights the chosen card while we fetch.
+      commit('setSelectedPath', { pathId: row.path_id, pathTables, sql: '', rows: [], csv: '' })
+      commit('setBackendError', '')
+      try {
+        const [sqlData, matData, csvText] = await Promise.all([
+          getJoinPathSql(row.path_id, state.dataLakeName),
+          materializeJoinPath(row.path_id, state.dataLakeName, 50),
+          getJoinPathCsv(row.path_id, state.dataLakeName),
+        ])
+        commit('setSelectedPath', {
+          pathId: row.path_id,
+          pathTables,
+          sql: sqlData?.sql || '',
+          rows: matData?.rows || [],
+          csv: csvText || '',
+        })
+      } catch (err) {
+        commit('setBackendError', err?.message || 'Unable to materialize join path.')
+      }
     },
   },
 })

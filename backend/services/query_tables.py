@@ -21,13 +21,17 @@ from backend.services.preprocessing import SEMANTIC_TYPES_ARTIFACT, TABLES_ARTIF
 QUERY_TABLE_INSTRUCTIONS = """Generate candidate query tables for a natural language data integration request.
 Use only the provided data lake context. Return the requested number of suggestions.
 Each suggestion should have a clear table name and exactly three example rows.
-Rows should be keyed by human-readable column names. Include semantic types for columns.
+Each row is a list of cells; each cell has the human-readable column name and the
+example value as strings. Use the same column set across the three rows of one
+suggestion. Include semantic types for columns.
 """
 
 QUERY_TABLE_RESUBMIT_INSTRUCTIONS = """Generate revised candidate query tables for a natural language data integration request.
 Use the user's edited query table as feedback about desired columns and example values.
 Use only the provided matched data lake evidence and context tables. Return revised suggestions
-that reflect the edits, especially renamed or newly added columns.
+that reflect the edits, especially renamed or newly added columns. Each row must be a list of
+cells with `column` and `value` fields (both strings); rows in one suggestion share the same
+column set.
 """
 
 
@@ -36,10 +40,23 @@ class QueryTableColumn(BaseModel):
     semantic_type: str = ""
 
 
+# Structured Outputs strict mode requires `additionalProperties: false` everywhere in
+# the JSON schema, which forbids freeform `dict[str, Any]` fields. Rows are therefore
+# represented on the wire as ordered (column, value) pairs and then re-keyed into a
+# dictionary inside `_normalize_suggestion`.
+class QueryTableCell(BaseModel):
+    column: str
+    value: str = ""
+
+
+class QueryTableRow(BaseModel):
+    cells: list[QueryTableCell] = Field(default_factory=list)
+
+
 class QueryTableSuggestion(BaseModel):
     name: str
     columns: list[QueryTableColumn] = Field(default_factory=list)
-    rows: list[dict[str, Any]] = Field(default_factory=list)
+    rows: list[QueryTableRow] = Field(default_factory=list)
 
 
 class QueryTableSuggestionsResponse(BaseModel):
@@ -281,7 +298,13 @@ def build_query_table_service(
 
 
 def _normalize_suggestion(suggestion: QueryTableSuggestion) -> dict[str, Any]:
-    rows = [dict(row) for row in suggestion.rows]
+    rows: list[dict[str, Any]] = []
+    for row in suggestion.rows:
+        row_dict: dict[str, Any] = {}
+        for cell in row.cells:
+            # Last value wins on duplicate column names within a row — matches dict semantics.
+            row_dict[cell.column] = cell.value
+        rows.append(row_dict)
     column_names = [column.name for column in suggestion.columns]
     if not column_names:
         seen: list[str] = []

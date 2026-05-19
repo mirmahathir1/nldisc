@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 
@@ -9,16 +9,34 @@ import JoinPathCard from '../components/JoinPathCard.vue'
 const store = useStore()
 const router = useRouter()
 
-const SIMULATED_DELAY_MS = 3000
-
 const params = computed(() => store.state.params)
 const lake = computed(() => store.state.dataLake)
+const backendError = computed(() => store.state.backendError)
+const sampleQueries = computed(() => store.state.sampleQueries || [])
 
 const joinEdges = computed(() => store.state.joinEdges || [])
 
 const nlQuery = computed({
   get: () => store.state.nlQuery,
   set: (v) => store.commit('setNlQuery', v),
+})
+
+const sampleQueryItems = computed(() =>
+  (sampleQueries.value || []).map((q) => ({ title: q.label || q.query, value: q.query })),
+)
+const sampleQuerySelection = ref(null)
+
+function populateSampleQuery(value) {
+  if (!value) return
+  nlQuery.value = value
+  // Reset the dropdown so the same item can be picked again.
+  sampleQuerySelection.value = null
+}
+
+onMounted(() => {
+  if (store.state.dataLakeName && !sampleQueries.value.length) {
+    store.dispatch('loadSampleQueries', store.state.dataLakeName)
+  }
 })
 
 const queryTables = computed(() => store.state.queryTables || [])
@@ -45,10 +63,6 @@ const resultsRenderTrigger = ref(0)
 
 const headerDrafts = ref({})
 const removeColumnName = ref('')
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)))
-}
 
 function norm(s) {
   return String(s ?? '')
@@ -194,20 +208,8 @@ function coerceCellValue(raw, current) {
 }
 
 function preprocessRowCount(pathId) {
-  const sigParts = Object.entries(lake.value || {})
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}:${Array.isArray(v) ? v.length : 0}x${v?.[0] ? Object.keys(v[0]).length : 0}`)
-    .join('|')
-  const p = store.state.params
-  const pSig = [
-    p?.semantic_type_similarity_threshold,
-    p?.semantic_joinability_threshold,
-    p?.equi_joinability_threshold,
-    p?.max_join_path_length,
-  ].join('|')
-  const sig = `${sigParts}::${pSig}`
-  const key = `${sig}::${pathId}`
-  return store.state.preprocessRowCounts?.[key]
+  const p = (topPaths.value || []).find((row) => row?.path_id === pathId)
+  return p?.row_count_estimate ?? p?.cardinality_estimate
 }
 
 function downloadSelectedCsv() {
@@ -224,38 +226,35 @@ function downloadSelectedCsv() {
   URL.revokeObjectURL(url)
 }
 
-async function generateQueryTablesWithDelay() {
+async function runGenerateQueryTables() {
   if (queryTablesUiRunning.value) return
   queryTablesUiRunning.value = true
   queryTablesRenderTrigger.value += 1
   try {
     await store.dispatch('generateQueryTables')
-    await sleep(SIMULATED_DELAY_MS)
   } finally {
     queryTablesUiRunning.value = false
   }
 }
 
-async function resubmitQueryTablesWithDelay() {
+async function runResubmitQueryTables() {
   if (queryTablesUiRunning.value) return
   queryTablesUiRunning.value = true
   queryTablesRenderTrigger.value += 1
   try {
     await store.dispatch('resubmitFromEdits')
-    await sleep(SIMULATED_DELAY_MS)
   } finally {
     queryTablesUiRunning.value = false
   }
 }
 
-async function confirmAndRunJoinSearchWithDelay() {
+async function runConfirmAndJoinSearch() {
   if (joinSearchUiRunning.value) return
   joinSearchUiRunning.value = true
   resultsRenderTrigger.value += 1
   try {
     store.commit('confirmEditedQueryTable')
     await store.dispatch('runJoinSearch')
-    await sleep(SIMULATED_DELAY_MS)
   } finally {
     joinSearchUiRunning.value = false
   }
@@ -280,14 +279,40 @@ function goBackOffline() {
       Please run preprocessing first (Offline Stage).
     </v-alert>
 
-    <v-row v-else>
+    <template v-else>
+      <v-alert v-if="backendError" type="error" variant="tonal" density="compact" class="mb-3">
+        {{ backendError }}
+      </v-alert>
+
+      <v-row>
       <!-- Left column: NL query + query tables grid -->
       <v-col cols="12" md="6">
         <v-card>
           <v-card-text>
             <v-row dense class="align-center">
               <v-col cols="12" md="5">
-                <v-textarea v-model="nlQuery" label="Natural LanguageQuery" variant="outlined" rows="3" auto-grow />
+                <v-select
+                  v-model="sampleQuerySelection"
+                  :items="sampleQueryItems"
+                  item-title="title"
+                  item-value="value"
+                  label="Populate a sample query"
+                  prepend-inner-icon="mdi-lightbulb-on-outline"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  class="mb-2"
+                  :disabled="!sampleQueryItems.length"
+                  @update:model-value="populateSampleQuery"
+                />
+                <v-textarea
+                  v-model="nlQuery"
+                  label="Natural Language Query"
+                  placeholder="Describe the table you want to build…"
+                  variant="outlined"
+                  rows="3"
+                  auto-grow
+                />
               </v-col>
 
               <v-col cols="12" md="7">
@@ -307,8 +332,8 @@ function goBackOffline() {
                   color="primary"
                   block
                   :loading="queryTablesUiRunning"
-                  :disabled="queryTablesUiRunning"
-                  @click="generateQueryTablesWithDelay"
+                  :disabled="queryTablesUiRunning || !nlQuery?.trim()"
+                  @click="runGenerateQueryTables"
                 >
                   Generate query tables
                 </v-btn>
@@ -369,8 +394,8 @@ function goBackOffline() {
                               size="x-small"
                               color="primary"
                               :loading="queryTablesUiRunning"
-                              :disabled="queryTablesUiRunning"
-                              @click.stop="resubmitQueryTablesWithDelay"
+                              :disabled="queryTablesUiRunning || !selectedEditedRows.length"
+                              @click.stop="runResubmitQueryTables"
                             >
                               Resubmit
                             </v-btn>
@@ -379,7 +404,7 @@ function goBackOffline() {
                               color="primary"
                               :loading="joinSearchUiRunning"
                               :disabled="!selectedEditedRows.length || joinSearchUiRunning"
-                              @click.stop="confirmAndRunJoinSearchWithDelay"
+                              @click.stop="runConfirmAndJoinSearch"
                             >
                               Confirm
                             </v-btn>
@@ -486,9 +511,11 @@ function goBackOffline() {
                 :key="p.path_id"
                 :path-id="p.path_id"
                 :tables-list="p.tables_list"
-                :edges="joinEdges"
+                :edges="p.join_edges?.length ? p.join_edges : joinEdges"
                 :data-lake="lake"
+                :attributes="p.attributes"
                 :query-columns="confirmedQueryColumns"
+                :highlighted-tables="p.highlighted_tables"
                 :row-count="preprocessRowCount(p.path_id)"
                 :selected="p.path_id === selectedPathId"
                 clickable
@@ -533,6 +560,7 @@ function goBackOffline() {
         </DelayedMount>
       </v-col>
     </v-row>
+    </template>
   </div>
 </template>
 

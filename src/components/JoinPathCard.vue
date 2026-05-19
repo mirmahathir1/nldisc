@@ -14,6 +14,9 @@ const props = defineProps({
   clickable: { type: Boolean, default: false },
   // Optional: columns from the confirmed query table, used for highlighting.
   queryColumns: { type: Array, default: () => [] },
+  // Optional: backend-supplied table names to highlight directly. When provided
+  // (non-empty), this takes precedence over the query-column-based inference.
+  highlightedTables: { type: Array, default: () => [] },
 })
 
 const emit = defineEmits(['request-row-count', 'click'])
@@ -48,6 +51,11 @@ function norm(s) {
 const queryColNorms = computed(() => new Set((props.queryColumns || []).map(norm).filter(Boolean)))
 
 const highlightTables = computed(() => {
+  // Prefer explicit backend-supplied highlights when available.
+  if (Array.isArray(props.highlightedTables) && props.highlightedTables.length) {
+    const allowed = new Set(props.tablesList || [])
+    return props.highlightedTables.filter((t) => allowed.has(t))
+  }
   const lake = props.dataLake || {}
   const q = queryColNorms.value
   if (!q.size) return []
