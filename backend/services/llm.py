@@ -73,12 +73,23 @@ class OpenAIResponsesLLM:
         cache_key = self.cache.cache_key(payload)
         cached = self.cache.read(datalake, payload)
         if cached is not None:
+            print(
+                f"[LLM] cache HIT  datalake={datalake} task={task_type} "
+                f"model={self.model} temperature={temp} cache_key={cache_key[:12]}",
+                flush=True,
+            )
             return LLMResult(
                 parsed=response_model.model_validate(cached["parsed"]),
                 cache_key=cache_key,
                 cache_hit=True,
             )
 
+        print(
+            f"[LLM] cache MISS datalake={datalake} task={task_type} "
+            f"model={self.model} temperature={temp} cache_key={cache_key[:12]} "
+            f"-> calling OpenAI",
+            flush=True,
+        )
         parsed = self._request_structured(
             response_model=response_model,
             instructions=instructions,
@@ -91,6 +102,11 @@ class OpenAIResponsesLLM:
             payload,
             parsed_model.model_dump(mode="json"),
             metadata={"task_type": task_type, "model": self.model},
+        )
+        print(
+            f"[LLM] OpenAI response stored  datalake={datalake} task={task_type} "
+            f"cache_key={cache_key[:12]}",
+            flush=True,
         )
         return LLMResult(parsed=parsed_model, cache_key=cache_key, cache_hit=False)
 

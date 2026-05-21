@@ -80,7 +80,11 @@ def materialization_client(tmp_path):
         join_path_embedder=embedder,
     )
     app.config["JOIN_SEARCH_SERVICE"] = build_join_search_service(config, datalake_service)
-    app.config["MATERIALIZATION_SERVICE"] = build_materialization_service(config, datalake_service)
+    app.config["MATERIALIZATION_SERVICE"] = build_materialization_service(
+        config,
+        datalake_service,
+        embedder=embedder,
+    )
     return app.test_client()
 
 
@@ -214,6 +218,84 @@ def test_country_selected_path_materialization_is_non_empty(materialization_clie
     assert data["row_count"] > 0
     assert data["preview_row_count"] > 0
     assert any(column.endswith(".country") for column in data["columns"])
+
+
+def test_join_path_materialize_projects_on_query_columns(materialization_client):
+    client = materialization_client
+    assert client.post(
+        "/api/preprocess",
+        json={
+            "datalake": "orders",
+            "params": {"equi_joinability_threshold": 0.9, "max_join_path_length": 6},
+        },
+    ).status_code == 200
+
+    join_search = client.post(
+        "/api/join-search",
+        json={
+            "datalake": "orders",
+            "natural_language_query": "Show orders with customer country, ordered products, quantities, categories, and shipment carriers.",
+            "confirmed_query_table_rows": [
+                {
+                    "Order ID": "O100",
+                    "Customer Country": "US",
+                    "Product": "Keyboard",
+                    "Quantity": "1",
+                    "Product Category": "Accessories",
+                    "Shipment Carrier": "DHL",
+                },
+            ],
+            "top_k": 1,
+            "dedup_threshold": 0.95,
+        },
+    )
+    assert join_search.status_code == 200
+    path_id = join_search.get_json()["data"]["join_paths"][0]["path_id"]
+
+    full = client.get(f"/api/join-paths/{path_id}/materialize?datalake=orders&limit=10").get_json()["data"]
+    full_columns = full["columns"]
+
+    projected = client.post(
+        f"/api/join-paths/{path_id}/materialize",
+        json={
+            "datalake": "orders",
+            "limit": 10,
+            "query_columns": ["Customer Country", "Product", "Shipment Carrier"],
+            "query_semantic_types": {
+                "Customer Country": "customer country",
+                "Product": "product name",
+                "Shipment Carrier": "shipment carrier",
+            },
+        },
+    )
+    assert projected.status_code == 200
+    data = projected.get_json()["data"]
+    assert data["projection"], "projection metadata should be included"
+    assert set(data["columns"]).issubset(set(full_columns))
+    assert len(data["columns"]) <= 3
+    assert len(data["projection"]["column_mapping"]) == 3
+    for entry in data["projection"]["column_mapping"]:
+        assert entry["lake_column"] in full_columns
+        assert entry["cosine_similarity"] >= 0.0
+    for row in data["rows"]:
+        assert set(row.keys()).issubset(set(data["columns"]))
+
+    csv_response = client.post(
+        f"/api/join-paths/{path_id}/csv",
+        json={
+            "datalake": "orders",
+            "query_columns": ["Customer Country", "Product"],
+            "query_semantic_types": {
+                "Customer Country": "customer country",
+                "Product": "product name",
+            },
+        },
+    )
+    assert csv_response.status_code == 200
+    assert csv_response.content_type.startswith("text/csv")
+    csv_header = csv_response.get_data(as_text=True).splitlines()[0].split(",")
+    assert set(csv_header) <= set(full_columns)
+    assert len(csv_header) <= 2
 
 
 def test_join_path_endpoints_report_missing_path(materialization_client):

@@ -10,4 +10,11 @@ export default defineConfig({
       autoImport: true,
     }),
   ],
+  server: {
+    watch: {
+      usePolling: true,
+      interval: 300,
+      ignored: ['**/node_modules/**', '**/.git/**', '**/backend/**'],
+    },
+  },
 })

@@ -69,6 +69,7 @@ function resetPipelineState(state) {
   state.selectedQtName = null
   state.editedQueryTables = {}
   state.confirmedQtRows = null
+  state.confirmedQtSemanticTypes = {}
   state.predicates = []
   state.requiredTables = []
   state.topPaths = null
@@ -77,6 +78,7 @@ function resetPipelineState(state) {
   state.selectedPathSql = ''
   state.materializedRows = null
   state.materializedCsv = ''
+  state.materializedProjection = null
   state.queryTablesSeed = null
   state.queryTablesPredSig = null
   state.preprocessExpandedPaths = new Set()
@@ -128,6 +130,7 @@ export default createStore({
     selectedQtName: null,
     editedQueryTables: {}, // name -> edited rows
     confirmedQtRows: null,
+    confirmedQtSemanticTypes: {}, // column name -> semantic type text (from confirmed query table)
     predicates: [],
     queryTablesSeed: null,
     queryTablesPredSig: null,
@@ -140,6 +143,7 @@ export default createStore({
     selectedPathSql: '',
     materializedRows: null,
     materializedCsv: '',
+    materializedProjection: null, // { query_columns, selected_columns, column_mapping }
   }),
 
   getters: {
@@ -225,6 +229,7 @@ export default createStore({
       state.selectedQtName = null
       state.editedQueryTables = {}
       state.confirmedQtRows = null
+      state.confirmedQtSemanticTypes = {}
       state.predicates = []
       state.requiredTables = []
       state.topPaths = null
@@ -233,6 +238,7 @@ export default createStore({
       state.selectedPathSql = ''
       state.materializedRows = null
       state.materializedCsv = ''
+      state.materializedProjection = null
       state.queryTablesSeed = null
       state.queryTablesPredSig = null
     },
@@ -263,6 +269,7 @@ export default createStore({
       state.editedQueryTables = {}
       ensureSelectedQueryTable(state)
       state.confirmedQtRows = null
+      state.confirmedQtSemanticTypes = {}
       state.requiredTables = []
       state.topPaths = null
       state.selectedPathId = null
@@ -270,6 +277,7 @@ export default createStore({
       state.selectedPathSql = ''
       state.materializedRows = null
       state.materializedCsv = ''
+      state.materializedProjection = null
     },
 
     setSelectedQtName(state, name) {
@@ -372,6 +380,9 @@ export default createStore({
       const rows = (state.editedQueryTables || {})[name] || []
       if (rows?.length) {
         state.confirmedQtRows = rows.map((r) => ({ ...r }))
+        const selected = (state.queryTables || []).find((q) => q?.name === name)
+        const sem = (selected && selected.semantic_types) || {}
+        state.confirmedQtSemanticTypes = { ...sem }
         state.requiredTables = []
         state.topPaths = null
         state.selectedPathId = null
@@ -379,6 +390,7 @@ export default createStore({
         state.selectedPathSql = ''
         state.materializedRows = null
         state.materializedCsv = ''
+        state.materializedProjection = null
       }
     },
 
@@ -387,6 +399,7 @@ export default createStore({
       state.selectedQtName = null
       state.editedQueryTables = {}
       state.confirmedQtRows = null
+      state.confirmedQtSemanticTypes = {}
       state.predicates = []
       state.requiredTables = []
       state.topPaths = null
@@ -395,6 +408,7 @@ export default createStore({
       state.selectedPathSql = ''
       state.materializedRows = null
       state.materializedCsv = ''
+      state.materializedProjection = null
       state.queryTablesSeed = null
       state.queryTablesPredSig = null
     },
@@ -405,12 +419,13 @@ export default createStore({
       state.selectedPathId = state.topPaths?.[0]?.path_id ?? null
     },
 
-    setSelectedPath(state, { pathId, pathTables, sql, rows, csv }) {
+    setSelectedPath(state, { pathId, pathTables, sql, rows, csv, projection }) {
       state.selectedPathId = pathId
       state.selectedPathTables = pathTables
       state.selectedPathSql = sql
       state.materializedRows = rows
       state.materializedCsv = csv
+      state.materializedProjection = projection || null
     },
   },
 
@@ -567,14 +582,25 @@ export default createStore({
       const pathTables = Array.isArray(row.tables_list) && row.tables_list.length
         ? row.tables_list
         : Array.isArray(row.ordered_tables) ? row.ordered_tables : []
+      const queryColumns = Array.from(
+        new Set(
+          (state.confirmedQtRows || []).flatMap((r) => (r && typeof r === 'object' ? Object.keys(r) : [])),
+        ),
+      )
+      const projection = queryColumns.length
+        ? {
+            queryColumns,
+            querySemanticTypes: state.confirmedQtSemanticTypes || {},
+          }
+        : undefined
       // Reflect the selection immediately so the UI highlights the chosen card while we fetch.
-      commit('setSelectedPath', { pathId: row.path_id, pathTables, sql: '', rows: [], csv: '' })
+      commit('setSelectedPath', { pathId: row.path_id, pathTables, sql: '', rows: [], csv: '', projection: null })
       commit('setBackendError', '')
       try {
         const [sqlData, matData, csvText] = await Promise.all([
           getJoinPathSql(row.path_id, state.dataLakeName),
-          materializeJoinPath(row.path_id, state.dataLakeName, 50),
-          getJoinPathCsv(row.path_id, state.dataLakeName),
+          materializeJoinPath(row.path_id, state.dataLakeName, 50, projection),
+          getJoinPathCsv(row.path_id, state.dataLakeName, projection),
         ])
         commit('setSelectedPath', {
           pathId: row.path_id,
@@ -582,6 +608,7 @@ export default createStore({
           sql: sqlData?.sql || '',
           rows: matData?.rows || [],
           csv: csvText || '',
+          projection: matData?.projection || null,
         })
       } catch (err) {
         commit('setBackendError', err?.message || 'Unable to materialize join path.')

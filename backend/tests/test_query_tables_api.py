@@ -92,7 +92,7 @@ def query_client(tmp_path):
                     {"name": "Carrier", "semantic_type": "shipment carrier"},
                 ]
             )
-            rows = (
+            row_dicts = (
                 [
                     {"Order ID": "O100", "Product Family": "Accessories", "Quantity": "1", "Carrier": "DHL"},
                     {"Order ID": "O101", "Product Family": "Accessories", "Quantity": "2", "Carrier": "UPS"},
@@ -105,6 +105,12 @@ def query_client(tmp_path):
                     {"Order ID": "O102", "Product": "Monitor", "Carrier": "FedEx"},
                 ]
             )
+            # Match the cell-list wire shape the strict Structured Outputs schema
+            # demands; `_normalize_suggestion` re-keys cells back into a dict.
+            rows = [
+                {"cells": [{"column": k, "value": v} for k, v in row.items()]}
+                for row in row_dicts
+            ]
             return {
                 "suggestions": [
                     {
@@ -179,6 +185,11 @@ def test_query_tables_endpoint_generates_suggestions_with_context_and_cache(quer
     assert first_data["query_tables"][0]["name"] == "Suggested Query Table 1"
     assert first_data["query_tables"][0]["columns"] == ["Order ID", "Product", "Carrier"]
     assert len(first_data["query_tables"][0]["rows"]) == 3
+    assert first_data["query_tables"][0]["rows"][0] == {
+        "Order ID": "O100",
+        "Product": "Keyboard",
+        "Carrier": "DHL",
+    }
     assert first_data["candidate_context_tables"]
     assert first_data["cache_hit"] is False
     assert len(calls) == 15

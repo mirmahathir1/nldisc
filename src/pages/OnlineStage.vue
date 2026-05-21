@@ -344,8 +344,9 @@ function goBackOffline() {
 
         <v-card class="mt-4">
           <v-card-title>Query tables</v-card-title>
-          <v-card-text v-if="!queryTables.length">Generate query tables to begin.</v-card-text>
-          <DelayedMount :active="!!queryTables.length" :trigger="queryTablesRenderTrigger">
+          <v-card-text v-if="!queryTables.length && !queryTablesUiRunning">Generate query tables to begin.</v-card-text>
+          <v-progress-linear v-if="queryTablesUiRunning" indeterminate color="primary" height="3" />
+          <DelayedMount :active="!!queryTables.length && !queryTablesUiRunning" :trigger="queryTablesRenderTrigger">
             <v-card-text class="pa-0">
               <v-row dense no-gutters class="ma-0">
                 <transition-group name="mount-pop" tag="div" class="qt-grid" appear>

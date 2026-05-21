@@ -104,16 +104,43 @@ export async function getJoinPathSql(pathId, datalake) {
   return request(`/join-paths/${encodeURIComponent(pathId)}/sql?datalake=${encodeURIComponent(datalake)}`)
 }
 
-export async function materializeJoinPath(pathId, datalake, limit = 50) {
+export async function materializeJoinPath(pathId, datalake, limit = 50, projection) {
+  const queryColumns = projection?.queryColumns
+  const querySemanticTypes = projection?.querySemanticTypes
+  if (Array.isArray(queryColumns) && queryColumns.length) {
+    return request(`/join-paths/${encodeURIComponent(pathId)}/materialize`, {
+      method: 'POST',
+      body: JSON.stringify({
+        datalake,
+        limit,
+        query_columns: queryColumns,
+        query_semantic_types: querySemanticTypes || {},
+      }),
+    })
+  }
   return request(
     `/join-paths/${encodeURIComponent(pathId)}/materialize?datalake=${encodeURIComponent(datalake)}&limit=${encodeURIComponent(limit)}`,
   )
 }
 
-export async function getJoinPathCsv(pathId, datalake) {
+export async function getJoinPathCsv(pathId, datalake, projection) {
+  const queryColumns = projection?.queryColumns
+  const querySemanticTypes = projection?.querySemanticTypes
+  const useProjection = Array.isArray(queryColumns) && queryColumns.length > 0
+
   const response = await fetch(
-    `${API_BASE_URL}/join-paths/${encodeURIComponent(pathId)}/csv?datalake=${encodeURIComponent(datalake)}`,
-    { headers: { Accept: 'text/csv' } },
+    `${API_BASE_URL}/join-paths/${encodeURIComponent(pathId)}/csv${useProjection ? '' : `?datalake=${encodeURIComponent(datalake)}`}`,
+    useProjection
+      ? {
+          method: 'POST',
+          headers: { Accept: 'text/csv', 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            datalake,
+            query_columns: queryColumns,
+            query_semantic_types: querySemanticTypes || {},
+          }),
+        }
+      : { headers: { Accept: 'text/csv' } },
   )
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
