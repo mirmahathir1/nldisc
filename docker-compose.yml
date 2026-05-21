@@ -1,0 +1,51 @@
+# NLDisc — backend (Flask) + frontend (Vite/Vue/Vuetify) with hot reload.
+#
+# Host ports are chosen to NOT collide with the semdisc-demo project, so both
+# stacks can run at the same time via two separate `docker compose up`:
+#
+#                 semdisc-demo   nldisc
+#   backend            5000        5001
+#   frontend           5173        5174
+#
+# NLDisc's frontend calls the backend directly from the browser
+# (VITE_NLDISC_API_BASE_URL), so that URL must point at the backend's published
+# HOST port (5001). The backend enables CORS, so cross-origin calls are allowed.
+
+name: nldisc
+
+services:
+  backend:
+    build:
+      context: ./backend
+    # Backend runs as `python -m backend.app` semantics from the repo root and
+    # resolves datalake/preprocessed_data relative to it, so the WHOLE repo is
+    # mounted at /app and we run from there.
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - /app/backend/__pycache__
+    ports:
+      # host 5001 -> container 5000 (avoids semdisc's 5000)
+      - "5001:5000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - FLASK_DEBUG=1
+    # Reads backend/.env (OPENAI_API_KEY, etc.) via the bind mount at runtime.
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    volumes:
+      - ./:/app
+      # Anonymous volume shields the image's node_modules from the host mount.
+      - /app/node_modules
+    ports:
+      # host 5174 -> container 5173 (avoids semdisc's 5173)
+      - "5174:5173"
+    environment:
+      # Browser-side calls go to the backend's published host port.
+      - VITE_NLDISC_API_BASE_URL=http://127.0.0.1:5001/api
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - backend

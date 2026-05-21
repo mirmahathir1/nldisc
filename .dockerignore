@@ -1,0 +1,12 @@
+# Build context for Dockerfile.frontend is the repo root — keep it lean.
+node_modules/
+dist/
+dist-ssr/
+.git/
+backend/.conda/
+backend/.env
+datalake/
+preprocessed_data/
+**/__pycache__/
+*.pyc
+.pytest_cache/

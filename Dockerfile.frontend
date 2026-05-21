@@ -1,0 +1,16 @@
+# NLDisc frontend (Vite + Vue 3 + Vuetify). The Vite project lives at the repo
+# root. Source is bind-mounted at runtime; the image only carries node_modules.
+# vite.config.js already enables polling for reliable hot reload over mounts.
+FROM node:20-slim
+
+WORKDIR /app
+
+# Install deps first for layer caching. node_modules stays in the image and is
+# shielded from the host bind mount by an anonymous volume in compose.
+COPY package.json package-lock.json* ./
+RUN npm install
+
+EXPOSE 5173
+
+# Bind 0.0.0.0 so the published port is reachable; fixed port for predictability.
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
