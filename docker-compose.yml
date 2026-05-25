@@ -41,8 +41,8 @@ services:
       # Anonymous volume shields the image's node_modules from the host mount.
       - /app/node_modules
     ports:
-      # host 5174 -> container 5173 (avoids semdisc's 5173)
-      - "5174:5173"
+      # host 5174 -> container 5174 (avoids semdisc's 5173)
+      - "5174:5174"
     environment:
       # Browser-side calls go to the backend's published host port.
       - VITE_NLDISC_API_BASE_URL=http://127.0.0.1:5001/api

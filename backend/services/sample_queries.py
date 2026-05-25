@@ -5,7 +5,7 @@ SAMPLE_QUERIES: dict[str, list[dict[str, str]]] = {
     "orders": [
         {
             "label": "Query 1",
-            "query": "Show orders with customer country, ordered products, quantities, categories, and shipment carriers.",
+            "query": "Show me recent order records of customers",
         },
         {
             "label": "Query 2",
@@ -15,7 +15,7 @@ SAMPLE_QUERIES: dict[str, list[dict[str, str]]] = {
     "country": [
         {
             "label": "Query 1",
-            "query": "Show countries with currency, continent, GDP per capita, population, literacy rate, and life expectancy.",
+            "query": "Show a table containing a country's education situation",
         },
         {
             "label": "Query 2",

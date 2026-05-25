@@ -9,6 +9,7 @@ from backend.services.join_detection import (
     EXACT_JOINABILITY_ARTIFACT,
     JOIN_GRAPH_ARTIFACT,
     MINHASH_JACCARD_ARTIFACT,
+    SEMANTIC_JOINABILITY_ARTIFACT,
     JoinDetectionParams,
     JoinDetectionService,
 )
@@ -92,27 +93,96 @@ def _semantic_types() -> dict:
 
 
 def test_join_detection_discovers_expected_orders_equi_joins(tmp_path):
-    service = JoinDetectionService(DataLakeService(_root() / "datalake"), tmp_path)
+    service = JoinDetectionService(DataLakeService(_root() / "datalake"), tmp_path, embedder=TinyEmbedder())
 
     result = service.discover("orders", JoinDetectionParams(equi_joinability_threshold=0.9))
     edges = result["join_graph"]["edges"]
-    edge_keys = {(edge["left_table"], edge["left_col"], edge["right_table"], edge["right_col"]) for edge in edges}
+    equi_keys = {
+        (edge["left_table"], edge["left_col"], edge["right_table"], edge["right_col"])
+        for edge in edges
+        if edge["edge_type"] == "equi"
+    }
+    semantic_keys = {
+        (edge["left_table"], edge["left_col"], edge["right_table"], edge["right_col"])
+        for edge in edges
+        if edge["edge_type"] == "semantic"
+    }
 
-    assert ("order_items", "order_id", "orders", "order_id") in edge_keys
-    assert ("orders", "order_id", "shipments", "order_id") in edge_keys
-    assert ("customers", "customer_id", "orders", "customer_id") in edge_keys
-    assert ("order_items", "product_id", "products", "product_id") in edge_keys
-    assert ("categories", "category_id", "products", "category_id") in edge_keys
+    # The `_no` columns hold purely numeric keys -> equi-joins.
+    assert ("order_items", "order_no", "orders", "order_no") in equi_keys
+    assert ("orders", "order_no", "shipments", "order_no") in equi_keys
+    assert ("customers", "customer_no", "orders", "customer_no") in equi_keys
+    assert ("order_items", "product_no", "products", "product_no") in equi_keys
+    assert ("categories", "category_no", "products", "category_no") in equi_keys
+
+    # The string `*_id` columns are non-numeric -> semantic (simhash+minhash) joins.
+    assert ("order_items", "order_id", "orders", "order_id") in semantic_keys
+    assert ("order_items", "product_id", "products", "product_id") in semantic_keys
+
     assert all(edge["left_table"] != edge["right_table"] for edge in edges)
-    assert all(edge["edge_type"] == "equi" for edge in edges)
+    assert all(edge["edge_type"] in {"equi", "semantic"} for edge in edges)
 
     assert (tmp_path / "orders" / JOIN_GRAPH_ARTIFACT).exists()
     assert (tmp_path / "orders" / MINHASH_JACCARD_ARTIFACT).exists()
     assert (tmp_path / "orders" / EXACT_JOINABILITY_ARTIFACT).exists()
+    assert (tmp_path / "orders" / SEMANTIC_JOINABILITY_ARTIFACT).exists()
+
+
+def test_semantic_type_gate_blocks_joins_with_dissimilar_types(tmp_path):
+    service = JoinDetectionService(DataLakeService(_root() / "datalake"), tmp_path, embedder=TinyEmbedder())
+
+    # Force every column's semantic type to an orthogonal token so no pair clears
+    # even a low type-similarity threshold -> no edges survive the second gate.
+    orthogonal_types = {
+        "schema_version": "semantic-types-v1",
+        "datalake": "orders",
+        "tables": {
+            table: {"columns": {column: {"semantic_type": "shipment carrier"} for column in df.columns}}
+            for table, df in service.load_tables("orders").items()
+        },
+    }
+    # Make one table's columns embed to a fully orthogonal axis (product/category)
+    # so cross-table pairs have cosine 0 under the TinyEmbedder.
+    orthogonal_types["tables"]["orders"]["columns"] = {
+        column: {"semantic_type": "product category"} for column in orthogonal_types["tables"]["orders"]["columns"]
+    }
+
+    gated = service.discover(
+        "orders",
+        JoinDetectionParams(equi_joinability_threshold=0.9, semantic_type_similarity_threshold=0.5),
+        semantic_types=orthogonal_types,
+    )
+    ungated = service.discover(
+        "orders",
+        JoinDetectionParams(equi_joinability_threshold=0.9, semantic_type_similarity_threshold=0.0),
+        semantic_types=orthogonal_types,
+    )
+
+    # Lowering the gate to 0.0 restores edges that the 0.5 gate removed.
+    assert len(gated["join_graph"]["edges"]) < len(ungated["join_graph"]["edges"])
+    for edge in ungated["join_graph"]["edges"]:
+        assert "semantic_type_similarity" in edge["metadata"]
+
+
+def test_unique_value_ratio_gate_discards_low_cardinality_joins(tmp_path):
+    service = JoinDetectionService(DataLakeService(_root() / "datalake"), tmp_path, embedder=TinyEmbedder())
+
+    permissive = service.discover(
+        "orders",
+        JoinDetectionParams(equi_joinability_threshold=0.9, unique_value_ratio_threshold=0.0),
+    )
+    # A threshold above 1.0 is impossible to satisfy, so every join is discarded.
+    strict = service.discover(
+        "orders",
+        JoinDetectionParams(equi_joinability_threshold=0.9, unique_value_ratio_threshold=1.01),
+    )
+
+    assert permissive["join_graph"]["edges"]
+    assert strict["join_graph"]["edges"] == []
 
 
 def test_join_paths_respect_max_length_and_build_table_index(tmp_path):
-    detector = JoinDetectionService(DataLakeService(_root() / "datalake"), tmp_path)
+    detector = JoinDetectionService(DataLakeService(_root() / "datalake"), tmp_path, embedder=TinyEmbedder())
     detected = detector.discover("orders", JoinDetectionParams(equi_joinability_threshold=0.9))
     service = JoinPathService(tmp_path, embedder=TinyEmbedder())
 
@@ -164,6 +234,7 @@ def test_offline_join_artifact_service_builds_phase4_artifact_set(tmp_path):
         DataLakeService(_root() / "datalake"),
         tmp_path,
         path_embedder=TinyEmbedder(),
+        value_embedder=TinyEmbedder(),
     )
 
     result = service.build(

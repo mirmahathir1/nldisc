@@ -24,6 +24,10 @@ Each suggestion should have a clear table name and exactly three example rows.
 Each row is a list of cells; each cell has the human-readable column name and the
 example value as strings. Use the same column set across the three rows of one
 suggestion. Include semantic types for columns.
+Every column must be populated with a real, non-empty example value in every row,
+drawn from the provided data lake context. Never emit blank, null, "N/A", or
+placeholder values. If you cannot supply a genuine value for a column from the
+context, omit that column entirely rather than leaving it empty.
 """
 
 QUERY_TABLE_RESUBMIT_INSTRUCTIONS = """Generate revised candidate query tables for a natural language data integration request.
@@ -32,6 +36,13 @@ Use only the provided matched data lake evidence and context tables. Return revi
 that reflect the edits, especially renamed or newly added columns. Each row must be a list of
 cells with `column` and `value` fields (both strings); rows in one suggestion share the same
 column set.
+Every column must be populated with a real, non-empty example value in every row, drawn from
+the matched evidence and context tables. Never emit blank, null, "N/A", or placeholder values.
+If the user added a column but left it empty, fill it with genuine values found in the data
+lake evidence; if no such values exist, omit that column rather than returning it empty.
+Suggest better column names that align with the matching data lake table columns and their
+semantic types from the evidence, rather than reusing the user's ad-hoc column labels. For
+example, prefer the lake column's clear, conventional name over a vague or abbreviated edit.
 """
 
 
@@ -152,7 +163,7 @@ class QueryTableService:
             parameters={"suggestion_count": suggestion_count, "ann_topk": ann_topk},
         )
         generated = [_normalize_suggestion(suggestion) for suggestion in result.parsed.suggestions]
-        query_tables = _dedupe_suggestions([edited_table, *generated])[:suggestion_count]
+        query_tables = _dedupe_suggestions(generated)[:suggestion_count]
 
         return {
             "datalake": datalake,

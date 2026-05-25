@@ -14,7 +14,12 @@ from backend.services.embeddings import (
     TableDescriptionEmbeddingService,
     TextEmbedder,
 )
-from backend.services.join_detection import EXACT_JOINABILITY_ARTIFACT, JOIN_GRAPH_ARTIFACT, MINHASH_JACCARD_ARTIFACT
+from backend.services.join_detection import (
+    EXACT_JOINABILITY_ARTIFACT,
+    JOIN_GRAPH_ARTIFACT,
+    MINHASH_JACCARD_ARTIFACT,
+    SEMANTIC_JOINABILITY_ARTIFACT,
+)
 from backend.services.join_paths import (
     JOIN_PATH_EMBEDDING_LABELS_ARTIFACT,
     JOIN_PATH_EMBEDDINGS_ARTIFACT,
@@ -36,10 +41,10 @@ PREPROCESSING_VERSION = "phase5-v1"
 
 
 DEFAULT_PREPROCESS_PARAMS = {
-    "semantic_type_similarity_threshold": 0.75,
+    "semantic_type_similarity_threshold": 0.3,
     "semantic_joinability_threshold": 0.75,
     "equi_joinability_threshold": 0.9,
-    "max_join_path_length": 5,
+    "max_join_path_length": 4,
 }
 
 
@@ -53,6 +58,7 @@ REQUIRED_ARTIFACTS = [
     TABLE_DESCRIPTION_LABELS,
     MINHASH_JACCARD_ARTIFACT,
     EXACT_JOINABILITY_ARTIFACT,
+    SEMANTIC_JOINABILITY_ARTIFACT,
     JOIN_GRAPH_ARTIFACT,
     JOIN_PATHS_ARTIFACT,
     TABLE_TO_PATH_INDEX_ARTIFACT,
@@ -69,6 +75,7 @@ class PreprocessingService:
     llm: OpenAIResponsesLLM
     table_description_embedder: TextEmbedder | None = None
     join_path_embedder: TextEmbedder | None = None
+    value_embedder: TextEmbedder | None = None
 
     def preprocess(self, datalake: str, params: dict[str, Any] | None = None, *, force: bool = False) -> dict[str, Any]:
         normalized_params = normalize_preprocess_params(params)
@@ -99,9 +106,12 @@ class PreprocessingService:
             self.datalake_service,
             self.config.preprocessed_dir,
             path_embedder=self.join_path_embedder,
+            value_embedder=self.value_embedder,
         ).build(
             datalake,
             equi_joinability_threshold=normalized_params["equi_joinability_threshold"],
+            semantic_joinability_threshold=normalized_params["semantic_joinability_threshold"],
+            semantic_type_similarity_threshold=normalized_params["semantic_type_similarity_threshold"],
             max_join_path_length=int(normalized_params["max_join_path_length"]),
             semantic_types=semantic_types,
             embedding_model=self.config.embedding_model,
@@ -214,6 +224,7 @@ def build_preprocessing_service(
     requester=None,
     table_description_embedder: TextEmbedder | None = None,
     join_path_embedder: TextEmbedder | None = None,
+    value_embedder: TextEmbedder | None = None,
 ) -> PreprocessingService:
     llm = OpenAIResponsesLLM(
         OpenAICache(config.preprocessed_dir),
@@ -228,6 +239,7 @@ def build_preprocessing_service(
         llm=llm,
         table_description_embedder=table_description_embedder,
         join_path_embedder=join_path_embedder,
+        value_embedder=value_embedder,
     )
 
 

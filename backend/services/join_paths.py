@@ -23,7 +23,7 @@ JOIN_PATH_SCHEMA_VERSION = "join-paths-v1"
 
 @dataclass(frozen=True)
 class JoinPathParams:
-    max_join_path_length: int = 5
+    max_join_path_length: int = 4
     embedding_model: str = "sentence-transformers/all-mpnet-base-v2"
 
 

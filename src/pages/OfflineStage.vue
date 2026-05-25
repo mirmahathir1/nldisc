@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 
@@ -26,6 +26,20 @@ const tableDescriptions = computed(() => store.state.tableDescriptions || {})
 
 const preprocessingUiRunning = ref(false)
 const preprocessRenderTrigger = ref(0)
+
+const JOIN_PATHS_PER_PAGE = 12
+const joinPathPage = ref(1)
+const joinPathPageCount = computed(() =>
+  Math.max(1, Math.ceil(joinPathIndex.value.length / JOIN_PATHS_PER_PAGE)),
+)
+const pagedJoinPaths = computed(() => {
+  const start = (joinPathPage.value - 1) * JOIN_PATHS_PER_PAGE
+  return joinPathIndex.value.slice(start, start + JOIN_PATHS_PER_PAGE)
+})
+
+watch(joinPathIndex, () => {
+  joinPathPage.value = 1
+})
 
 onMounted(() => {
   store.dispatch('loadDatalakes')
@@ -134,7 +148,10 @@ function goToOnlineStage() {
                 />
               </v-col>
 
-              <v-col cols="12" md="2" class="d-flex flex-column align-end">
+            </v-row>
+
+            <v-row dense class="mt-1">
+              <v-col cols="12" class="d-flex align-center justify-end ga-2">
                 <v-btn
                   color="primary"
                   :loading="preprocessingUiRunning || store.state.preprocessLoading"
@@ -143,6 +160,17 @@ function goToOnlineStage() {
                 >
                   Run preprocessing
                 </v-btn>
+                <v-expand-x-transition>
+                  <v-btn
+                    v-if="store.state.preprocessed"
+                    color="primary"
+                    variant="tonal"
+                    :disabled="!store.getters.canGoStage3 || preprocessingUiRunning"
+                    @click="goToOnlineStage"
+                  >
+                    Go to Online Stage
+                  </v-btn>
+                </v-expand-x-transition>
               </v-col>
             </v-row>
 
@@ -186,7 +214,7 @@ function goToOnlineStage() {
                 <v-col cols="12" md="8">
                   <transition-group name="mount-pop" tag="div" class="jp-list" appear>
                     <JoinPathCard
-                      v-for="(r, idx) in joinPathIndex.slice(0, 12)"
+                      v-for="(r, idx) in pagedJoinPaths"
                       :key="r.path_id"
                       :path-id="r.path_id"
                       :tables-list="r.tables_list"
@@ -197,6 +225,17 @@ function goToOnlineStage() {
                       :style="{ transitionDelay: `${Math.min(idx, 12) * 35}ms` }"
                     />
                   </transition-group>
+                  <v-pagination
+                    v-if="joinPathPageCount > 1"
+                    v-model="joinPathPage"
+                    :length="joinPathPageCount"
+                    :total-visible="7"
+                    density="comfortable"
+                    class="mt-2"
+                  />
+                  <div class="text-caption text-medium-emphasis mt-1 px-1">
+                    {{ joinPathIndex.length }} join path{{ joinPathIndex.length === 1 ? '' : 's' }}
+                  </div>
                 </v-col>
                 <v-col cols="12" md="4">
                   <transition name="mount-pop" appear>
@@ -211,21 +250,6 @@ function goToOnlineStage() {
             </v-card-text>
           </v-card>
         </DelayedMount>
-
-        <v-expand-transition>
-          <div v-if="store.state.preprocessed" class="d-flex justify-end mt-3">
-            <transition name="mount-pop" appear>
-              <v-btn
-                color="primary"
-                variant="tonal"
-                :disabled="!store.getters.canGoStage3 || preprocessingUiRunning"
-                @click="goToOnlineStage"
-              >
-                Go to Online Stage
-              </v-btn>
-            </transition>
-          </div>
-        </v-expand-transition>
       </v-col>
     </v-row>
   </div>

@@ -16,10 +16,10 @@ import {
 
 function defaultParams() {
   return {
-    semantic_type_similarity_threshold: 0.75,
+    semantic_type_similarity_threshold: 0.3,
     semantic_joinability_threshold: 0.75,
     equi_joinability_threshold: 0.9,
-    max_join_path_length: 5,
+    max_join_path_length: 4,
     top_k_paths: 5,
     ann_topk: 25,
     query_table_suggestion_count: 4,
