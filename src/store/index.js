@@ -209,9 +209,19 @@ export default createStore({
     },
 
     setParams(state, params) {
-      const previous = JSON.stringify(state.params)
+      // Only these params affect the offline preprocessing artifacts; changing any
+      // other (online-only) param such as query_table_suggestion_count, ann_topk, or
+      // top_k_paths must not invalidate preprocessing.
+      const PREPROCESS_PARAM_KEYS = [
+        'semantic_type_similarity_threshold',
+        'semantic_joinability_threshold',
+        'equi_joinability_threshold',
+        'max_join_path_length',
+      ]
+      const sig = (p) => PREPROCESS_PARAM_KEYS.map((k) => p?.[k]).join('|')
+      const previousSig = sig(state.params)
       state.params = { ...state.params, ...(params || {}) }
-      if (state.preprocessed && previous !== JSON.stringify(state.params)) {
+      if (state.preprocessed && previousSig !== sig(state.params)) {
         resetPipelineState(state)
       }
     },

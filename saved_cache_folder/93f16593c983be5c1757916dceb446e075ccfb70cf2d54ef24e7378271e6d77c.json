@@ -1,0 +1,1315 @@
+{
+  "cache_key": "93f16593c983be5c1757916dceb446e075ccfb70cf2d54ef24e7378271e6d77c",
+  "metadata": {
+    "model": "gpt-4.1",
+    "task_type": "initial_query_table_suggestions"
+  },
+  "parsed": {
+    "suggestions": [
+      {
+        "columns": [
+          {
+            "name": "Country",
+            "semantic_type": "country name or code (ISO)"
+          },
+          {
+            "name": "Literacy Rate (%)",
+            "semantic_type": "literacy rate percentage"
+          },
+          {
+            "name": "Data Source",
+            "semantic_type": "data source name"
+          }
+        ],
+        "name": "Country_Literacy_Rates",
+        "rows": [
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Thailand"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "96.3"
+              },
+              {
+                "column": "Data Source",
+                "value": "UNESCO"
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Italy"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "99.0"
+              },
+              {
+                "column": "Data Source",
+                "value": "CIA World Factbook"
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Egypt"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "73.4"
+              },
+              {
+                "column": "Data Source",
+                "value": "UNESCO"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "columns": [
+          {
+            "name": "Country",
+            "semantic_type": "country name or code (ISO)"
+          },
+          {
+            "name": "Literacy Rate (%)",
+            "semantic_type": "literacy rate percentage"
+          },
+          {
+            "name": "Life Expectancy (years)",
+            "semantic_type": "average life expectancy (years)"
+          }
+        ],
+        "name": "Country_Literacy_and_Health",
+        "rows": [
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Thailand"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "96.3"
+              },
+              {
+                "column": "Life Expectancy (years)",
+                "value": "71.8"
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Italy"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "99.0"
+              },
+              {
+                "column": "Life Expectancy (years)",
+                "value": "83.4"
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Egypt"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "73.4"
+              },
+              {
+                "column": "Life Expectancy (years)",
+                "value": "71.5"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "columns": [
+          {
+            "name": "Country",
+            "semantic_type": "country name or code (ISO)"
+          },
+          {
+            "name": "Literacy Rate (%)",
+            "semantic_type": "literacy rate percentage"
+          },
+          {
+            "name": "Gini Coefficient",
+            "semantic_type": "Gini coefficient (numeric measure of income inequality)"
+          }
+        ],
+        "name": "Country_Literacy_and_Gini",
+        "rows": [
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Italy"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "99.0"
+              },
+              {
+                "column": "Gini Coefficient",
+                "value": "45.24"
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Germany"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "99.0"
+              },
+              {
+                "column": "Gini Coefficient",
+                "value": "30.51"
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Russia"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "99.0"
+              },
+              {
+                "column": "Gini Coefficient",
+                "value": "46.46"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "columns": [
+          {
+            "name": "Country",
+            "semantic_type": "country name or code (ISO)"
+          },
+          {
+            "name": "Literacy Rate (%)",
+            "semantic_type": "literacy rate percentage"
+          },
+          {
+            "name": "Population (millions)",
+            "semantic_type": "population in millions"
+          }
+        ],
+        "name": "Country_Literacy_and_Population",
+        "rows": [
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Thailand"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "96.3"
+              },
+              {
+                "column": "Population (millions)",
+                "value": "332.0"
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Italy"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "99.0"
+              },
+              {
+                "column": "Population (millions)",
+                "value": "60.0"
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Egypt"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "73.4"
+              },
+              {
+                "column": "Population (millions)",
+                "value": "1411.0"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "columns": [
+          {
+            "name": "Country",
+            "semantic_type": "country name or code (ISO)"
+          },
+          {
+            "name": "Literacy Rate (%)",
+            "semantic_type": "literacy rate percentage"
+          },
+          {
+            "name": "Annual Inflation Rate (%)",
+            "semantic_type": "annual inflation rate (percent)"
+          }
+        ],
+        "name": "Country_Literacy_and_Inflation",
+        "rows": [
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Thailand"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "96.3"
+              },
+              {
+                "column": "Annual Inflation Rate (%)",
+                "value": "0.3"
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Italy"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "99.0"
+              },
+              {
+                "column": "Annual Inflation Rate (%)",
+                "value": "5.3"
+              }
+            ]
+          },
+          {
+            "cells": [
+              {
+                "column": "Country",
+                "value": "Egypt"
+              },
+              {
+                "column": "Literacy Rate (%)",
+                "value": "73.4"
+              },
+              {
+                "column": "Annual Inflation Rate (%)",
+                "value": "40.5"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "payload": {
+    "input": {
+      "context_tables": [
+        {
+          "columns": [
+            {
+              "name": "country",
+              "sample_values": [
+                "Thailand",
+                "Italy",
+                "Egypt",
+                "Netherlands",
+                "Australia"
+              ],
+              "semantic_type": "country name or code (ISO)"
+            },
+            {
+              "name": "literacy_rate",
+              "sample_values": [
+                "99.0",
+                "96.3",
+                "73.4",
+                "59.1",
+                "76.5"
+              ],
+              "semantic_type": "literacy rate percentage"
+            },
+            {
+              "name": "data_source",
+              "sample_values": [
+                "CIA World Factbook",
+                "UNESCO",
+                "OECD",
+                "World Bank"
+              ],
+              "semantic_type": "data source name"
+            }
+          ],
+          "description": "The literacy_rates table lists countries, their literacy rate percentages, and the data source for each value.",
+          "retrieval_score": 0.63250732421875,
+          "sample_rows": [
+            {
+              "country": "Thailand",
+              "data_source": "UNESCO",
+              "literacy_rate": "96.3"
+            },
+            {
+              "country": "Italy",
+              "data_source": "CIA World Factbook",
+              "literacy_rate": "99.0"
+            },
+            {
+              "country": "Egypt",
+              "data_source": "UNESCO",
+              "literacy_rate": "73.4"
+            }
+          ],
+          "table_name": "literacy_rates"
+        },
+        {
+          "columns": [
+            {
+              "name": "country",
+              "sample_values": [
+                "Thailand",
+                "Italy",
+                "Egypt",
+                "Netherlands",
+                "Australia"
+              ],
+              "semantic_type": "country name or code"
+            },
+            {
+              "name": "life_expectancy",
+              "sample_values": [
+                "76.3",
+                "71.8",
+                "83.4",
+                "71.5",
+                "82.1"
+              ],
+              "semantic_type": "average life expectancy (years)"
+            },
+            {
+              "name": "healthcare_expenditures",
+              "sample_values": [
+                "265",
+                "3807",
+                "192",
+                "6026",
+                "6237"
+              ],
+              "semantic_type": "annual healthcare expenditure (USD)"
+            }
+          ],
+          "description": "The table 'health_indicators' lists countries along with their average life expectancy in years and annual healthcare expenditures in USD.",
+          "retrieval_score": 0.494556188583374,
+          "sample_rows": [
+            {
+              "country": "Thailand",
+              "healthcare_expenditures": "265",
+              "life_expectancy": "71.8"
+            },
+            {
+              "country": "Italy",
+              "healthcare_expenditures": "3807",
+              "life_expectancy": "83.4"
+            },
+            {
+              "country": "Egypt",
+              "healthcare_expenditures": "192",
+              "life_expectancy": "71.5"
+            }
+          ],
+          "table_name": "health_indicators"
+        },
+        {
+          "columns": [
+            {
+              "name": "university",
+              "sample_values": [
+                "Harvard",
+                "MIT",
+                "Stanford",
+                "UC Berkeley",
+                "University of Toronto"
+              ],
+              "semantic_type": "university name or identifier (string)"
+            },
+            {
+              "name": "acceptance_rate_percent",
+              "sample_values": [
+                "3.4",
+                "4.1",
+                "3.9",
+                "14.8",
+                "43.0"
+              ],
+              "semantic_type": "acceptance rate percentage (numeric)"
+            },
+            {
+              "name": "country",
+              "sample_values": [
+                "United States",
+                "Canada",
+                "United Kingdom",
+                "China",
+                "Japan"
+              ],
+              "semantic_type": "country name"
+            },
+            {
+              "name": "latest_data_year",
+              "sample_values": [
+                "2023"
+              ],
+              "semantic_type": "data year (YYYY)"
+            }
+          ],
+          "description": "This table lists universities along with their acceptance rates (as percentages), country, and the year of the latest data (2023), with examples like Harvard (3.",
+          "retrieval_score": 0.48452937602996826,
+          "sample_rows": [
+            {
+              "acceptance_rate_percent": "3.4",
+              "country": "United States",
+              "latest_data_year": "2023",
+              "university": "Harvard"
+            },
+            {
+              "acceptance_rate_percent": "4.1",
+              "country": "United States",
+              "latest_data_year": "2023",
+              "university": "MIT"
+            },
+            {
+              "acceptance_rate_percent": "3.9",
+              "country": "United States",
+              "latest_data_year": "2023",
+              "university": "Stanford"
+            }
+          ],
+          "table_name": "university_acceptance"
+        },
+        {
+          "columns": [
+            {
+              "name": "country",
+              "sample_values": [
+                "United States",
+                "China",
+                "India",
+                "Germany",
+                "France"
+              ],
+              "semantic_type": "country name"
+            },
+            {
+              "name": "gdp (in trillions USD)",
+              "sample_values": [
+                "0.4",
+                "1.1",
+                "0.6",
+                "2.1",
+                "1.7"
+              ],
+              "semantic_type": "GDP in trillions USD"
+            },
+            {
+              "name": "region",
+              "sample_values": [
+                "Asia",
+                "Europe",
+                "North America",
+                "Africa",
+                "South America"
+              ],
+              "semantic_type": "world region"
+            },
+            {
+              "name": "official_language",
+              "sample_values": [
+                "English",
+                "Spanish",
+                "Arabic",
+                "Mandarin",
+                "Hindi, English"
+              ],
+              "semantic_type": "official language"
+            },
+            {
+              "name": "internet_penetration",
+              "sample_values": [
+                "41.99",
+                "92.74",
+                "55.01",
+                "78.43",
+                "58.08"
+              ],
+              "semantic_type": "internet penetration rate (%)"
+            },
+            {
+              "name": "currency",
+              "sample_values": [
+                "EUR",
+                "USD",
+                "CNY",
+                "INR",
+                "BRL"
+              ],
+              "semantic_type": "currency code"
+            },
+            {
+              "name": "population_millions",
+              "sample_values": [
+                "60.0",
+                "332.0",
+                "1411.0",
+                "1393.0",
+                "83.0"
+              ],
+              "semantic_type": "population in millions"
+            },
+            {
+              "name": "gdp_per_capita_usd",
+              "sample_values": [
+                "81325.30120481928",
+                "12544.294826364281",
+                "2656.137832017229",
+                "54216.867469879515",
+                "46268.65671641791"
+              ],
+              "semantic_type": "GDP per capita (USD)"
+            }
+          ],
+          "description": "The table 'GDP_Per_Capita_Completed' lists countries with their GDP (in trillions USD), GDP per capita (USD), population (in millions), internet penetration rate (%), official language, currency code, and world region.",
+          "retrieval_score": 0.4827629327774048,
+          "sample_rows": [
+            {
+              "country": "United States",
+              "currency": "USD",
+              "gdp (in trillions USD)": "27.0",
+              "gdp_per_capita_usd": "81325.30120481928",
+              "internet_penetration": "41.99",
+              "official_language": "English",
+              "population_millions": "332.0",
+              "region": "North America"
+            },
+            {
+              "country": "China",
+              "currency": "CNY",
+              "gdp (in trillions USD)": "17.7",
+              "gdp_per_capita_usd": "12544.294826364281",
+              "internet_penetration": "92.74",
+              "official_language": "Mandarin",
+              "population_millions": "1411.0",
+              "region": "Asia"
+            },
+            {
+              "country": "India",
+              "currency": "INR",
+              "gdp (in trillions USD)": "3.7",
+              "gdp_per_capita_usd": "2656.137832017229",
+              "internet_penetration": "55.01",
+              "official_language": "Hindi, English",
+              "population_millions": "1393.0",
+              "region": "Asia"
+            }
+          ],
+          "table_name": "GDP_Per_Capita_Completed"
+        },
+        {
+          "columns": [
+            {
+              "name": "country",
+              "sample_values": [
+                "Russia",
+                "United Kingdom",
+                "Germany",
+                "South Africa",
+                "Italy"
+              ],
+              "semantic_type": "country name or territory name (text)"
+            },
+            {
+              "name": "gini_coefficient",
+              "sample_values": [
+                "46.46",
+                "33.15",
+                "30.51",
+                "42.78",
+                "45.24"
+              ],
+              "semantic_type": "Gini coefficient (numeric measure of income inequality)"
+            }
+          ],
+          "description": "The gini_index table lists countries or territories and their corresponding Gini coefficients, which are numeric measures of income inequality (e.",
+          "retrieval_score": 0.43514275550842285,
+          "sample_rows": [
+            {
+              "country": "Russia",
+              "gini_coefficient": "46.46"
+            },
+            {
+              "country": "United Kingdom",
+              "gini_coefficient": "33.15"
+            },
+            {
+              "country": "Germany",
+              "gini_coefficient": "30.51"
+            }
+          ],
+          "table_name": "gini_index"
+        },
+        {
+          "columns": [
+            {
+              "name": "country",
+              "sample_values": [
+                "Australia",
+                "Mexico",
+                "Italy",
+                "South Africa",
+                "Sweden"
+              ],
+              "semantic_type": "country name or code"
+            },
+            {
+              "name": "temperature",
+              "sample_values": [
+                "-4.9",
+                "31.6",
+                "29.5",
+                "1.6",
+                "19.7"
+              ],
+              "semantic_type": "temperature value (°C)"
+            }
+          ],
+          "description": "This table lists countries and their corresponding temperature values in degrees Celsius.",
+          "retrieval_score": 0.4169546365737915,
+          "sample_rows": [
+            {
+              "country": "Australia",
+              "temperature": "-4.9"
+            },
+            {
+              "country": "Italy",
+              "temperature": "31.6"
+            },
+            {
+              "country": "South Africa",
+              "temperature": "29.5"
+            }
+          ],
+          "table_name": "climate_metrics"
+        },
+        {
+          "columns": [
+            {
+              "name": "country",
+              "sample_values": [
+                "United States",
+                "China",
+                "India",
+                "Germany",
+                "France"
+              ],
+              "semantic_type": "country name or territory name'}, {"
+            },
+            {
+              "name": "pop_data",
+              "sample_values": [
+                "333.3",
+                "1411.8",
+                "1408",
+                "83.3",
+                "65.6"
+              ],
+              "semantic_type": "population estimate"
+            },
+            {
+              "name": "data_year",
+              "sample_values": [
+                "2023"
+              ],
+              "semantic_type": "data year"
+            },
+            {
+              "name": "source",
+              "sample_values": [
+                "World Bank / UN Estimates"
+              ],
+              "semantic_type": "data source"
+            }
+          ],
+          "description": "The census_data table lists countries with their estimated populations for the year 2023 and the data source, such as 'World Bank / UN Estimates.",
+          "retrieval_score": 0.40162789821624756,
+          "sample_rows": [
+            {
+              "country": "United States",
+              "data_year": "2023",
+              "pop_data": "333.3",
+              "source": "World Bank / UN Estimates"
+            },
+            {
+              "country": "China",
+              "data_year": "2023",
+              "pop_data": "1411.8",
+              "source": "World Bank / UN Estimates"
+            },
+            {
+              "country": "India",
+              "data_year": "2023",
+              "pop_data": "1408",
+              "source": "World Bank / UN Estimates"
+            }
+          ],
+          "table_name": "census_data"
+        },
+        {
+          "columns": [
+            {
+              "name": "country",
+              "sample_values": [
+                "Germany",
+                "Sweden",
+                "United States",
+                "India",
+                "China"
+              ],
+              "semantic_type": "country name or code (location)"
+            },
+            {
+              "name": "renewable_energy_percent",
+              "sample_values": [
+                "42.1",
+                "54.6",
+                "13.1",
+                "21.3",
+                "15.9"
+              ],
+              "semantic_type": "renewable energy percentage"
+            },
+            {
+              "name": "data_year",
+              "sample_values": [
+                "2022",
+                "2021"
+              ],
+              "semantic_type": "year (data reference)"
+            },
+            {
+              "name": "source",
+              "sample_values": [
+                "IEA"
+              ],
+              "semantic_type": "data source name"
+            }
+          ],
+          "description": "The renewable_energy table lists countries, the percentage of their energy from renewable sources, the data year, and the data source (IEA).",
+          "retrieval_score": 0.39919281005859375,
+          "sample_rows": [
+            {
+              "country": "Germany",
+              "data_year": "2022",
+              "renewable_energy_percent": "42.1",
+              "source": "IEA"
+            },
+            {
+              "country": "Sweden",
+              "data_year": "2022",
+              "renewable_energy_percent": "54.6",
+              "source": "IEA"
+            },
+            {
+              "country": "United States",
+              "data_year": "2021",
+              "renewable_energy_percent": "13.1",
+              "source": "IEA"
+            }
+          ],
+          "table_name": "renewable_energy"
+        },
+        {
+          "columns": [
+            {
+              "name": "country",
+              "sample_values": [
+                "United States",
+                "China",
+                "India",
+                "Germany",
+                "France"
+              ],
+              "semantic_type": "country name or territory name (full)"
+            },
+            {
+              "name": "currency",
+              "sample_values": [
+                "EUR",
+                "USD",
+                "CNY",
+                "INR",
+                "BRL"
+              ],
+              "semantic_type": "currency code (ISO 4217)"
+            },
+            {
+              "name": "currency_strength",
+              "sample_values": [
+                "50",
+                "90",
+                "95",
+                "65",
+                "45"
+              ],
+              "semantic_type": "currency strength index or score"
+            }
+          ],
+          "description": "This table lists countries, their official currency codes, and a numerical index representing the strength of each currency.",
+          "retrieval_score": 0.3814204931259155,
+          "sample_rows": [
+            {
+              "country": "United States",
+              "currency": "USD",
+              "currency_strength": "95"
+            },
+            {
+              "country": "China",
+              "currency": "CNY",
+              "currency_strength": "65"
+            },
+            {
+              "country": "India",
+              "currency": "INR",
+              "currency_strength": "45"
+            }
+          ],
+          "table_name": "country_currency_strength"
+        },
+        {
+          "columns": [
+            {
+              "name": "country",
+              "sample_values": [
+                "Thailand",
+                "Italy",
+                "Egypt",
+                "Netherlands",
+                "Australia"
+              ],
+              "semantic_type": "country name or territory name"
+            },
+            {
+              "name": "inflation_rate_annual_percent",
+              "sample_values": [
+                "5.4",
+                "3.7",
+                "0.3",
+                "5.3",
+                "40.5"
+              ],
+              "semantic_type": "annual inflation rate (percent)"
+            }
+          ],
+          "description": "The economic_metrics table lists countries alongside their annual inflation rates as percentages, such as Thailand (0.",
+          "retrieval_score": 0.361605703830719,
+          "sample_rows": [
+            {
+              "country": "Thailand",
+              "inflation_rate_annual_percent": "0.3"
+            },
+            {
+              "country": "Italy",
+              "inflation_rate_annual_percent": "5.3"
+            },
+            {
+              "country": "Egypt",
+              "inflation_rate_annual_percent": "40.5"
+            }
+          ],
+          "table_name": "economic_metrics"
+        },
+        {
+          "columns": [
+            {
+              "name": "Continent",
+              "sample_values": [
+                "Asia",
+                "Europe",
+                "North America",
+                "South America",
+                "Africa"
+              ],
+              "semantic_type": "continent name or code'}, {"
+            },
+            {
+              "name": "GDP (in Trillions USD)",
+              "sample_values": [
+                "42",
+                "24",
+                "28",
+                "4",
+                "3"
+              ],
+              "semantic_type": "gross domestic product (trillions USD)"
+            }
+          ],
+          "description": "This table lists continents and their corresponding gross domestic product (GDP) in trillions of USD, with examples such as Asia (42), Europe (24), and North America (28).",
+          "retrieval_score": 0.3588138222694397,
+          "sample_rows": [
+            {
+              "Continent": "Asia",
+              "GDP (in Trillions USD)": "42"
+            },
+            {
+              "Continent": "Europe",
+              "GDP (in Trillions USD)": "24"
+            },
+            {
+              "Continent": "North America",
+              "GDP (in Trillions USD)": "28"
+            }
+          ],
+          "table_name": "continent_gdp"
+        },
+        {
+          "columns": [
+            {
+              "name": "country",
+              "sample_values": [
+                "Australia",
+                "Saudi Arabia",
+                "Brazil",
+                "China",
+                "Sweden"
+              ],
+              "semantic_type": "country name"
+            },
+            {
+              "name": "currency",
+              "sample_values": [
+                "Lao kip",
+                "Mongolian tugrik",
+                "Ghanaian cedi",
+                "CFP franc",
+                "Bhutanese ngultrum"
+              ],
+              "semantic_type": "currency name"
+            }
+          ],
+          "description": "The 'currency' table lists country names alongside the names of various world currencies.",
+          "retrieval_score": 0.34512758255004883,
+          "sample_rows": [
+            {
+              "country": "Saudi Arabia",
+              "currency": "Lao kip"
+            },
+            {
+              "country": "Brazil",
+              "currency": "Mongolian tugrik"
+            },
+            {
+              "country": "China",
+              "currency": "Ghanaian cedi"
+            }
+          ],
+          "table_name": "currency"
+        },
+        {
+          "columns": [
+            {
+              "name": "country",
+              "sample_values": [
+                "Italy",
+                "France",
+                "Germany",
+                "Norway",
+                "Canada"
+              ],
+              "semantic_type": "country name or code (destination)"
+            },
+            {
+              "name": "tourism",
+              "sample_values": [
+                "30337223",
+                "9632582",
+                "41667719",
+                "16885802",
+                "4112600"
+              ],
+              "semantic_type": "number of tourists"
+            }
+          ],
+          "description": "The table 'global_tourism' lists countries and the corresponding number of tourists they received, such as Italy with 30,337,223 and Germany with 41,667,719.",
+          "retrieval_score": 0.3171881437301636,
+          "sample_rows": [
+            {
+              "country": "Italy",
+              "tourism": "30337223"
+            },
+            {
+              "country": "France",
+              "tourism": "9632582"
+            },
+            {
+              "country": "Germany",
+              "tourism": "41667719"
+            }
+          ],
+          "table_name": "global_tourism"
+        },
+        {
+          "columns": [
+            {
+              "name": "company",
+              "sample_values": [
+                "Apple",
+                "Microsoft",
+                "Alphabet",
+                "Amazon",
+                "NVIDIA"
+              ],
+              "semantic_type": "company name or ticker symbol (tech)"
+            },
+            {
+              "name": "market_cap_billion_usd",
+              "sample_values": [
+                "120",
+                "2800",
+                "2500",
+                "1900",
+                "1700"
+              ],
+              "semantic_type": "market capitalization (USD, billions)"
+            },
+            {
+              "name": "headquarters",
+              "sample_values": [
+                "USA",
+                "South Korea",
+                "Japan",
+                "Sweden",
+                "China"
+              ],
+              "semantic_type": "company headquarters country"
+            },
+            {
+              "name": "as_of_year",
+              "sample_values": [
+                "2024"
+              ],
+              "semantic_type": "market cap reference year"
+            }
+          ],
+          "description": "This table lists major technology companies, their market capitalization in billions of USD, headquarters country, and the reference year (2024) for the market cap values.",
+          "retrieval_score": 0.3167603611946106,
+          "sample_rows": [
+            {
+              "as_of_year": "2024",
+              "company": "Apple",
+              "headquarters": "USA",
+              "market_cap_billion_usd": "2800"
+            },
+            {
+              "as_of_year": "2024",
+              "company": "Microsoft",
+              "headquarters": "USA",
+              "market_cap_billion_usd": "2500"
+            },
+            {
+              "as_of_year": "2024",
+              "company": "Alphabet",
+              "headquarters": "USA",
+              "market_cap_billion_usd": "1900"
+            }
+          ],
+          "table_name": "tech_market_cap"
+        },
+        {
+          "columns": [
+            {
+              "name": "country",
+              "sample_values": [
+                "Russia",
+                "Germany",
+                "Australia",
+                "United States",
+                "Norway"
+              ],
+              "semantic_type": "country name or territory name (string)"
+            },
+            {
+              "name": "continent",
+              "sample_values": [
+                "Oceania",
+                "North America",
+                "Asia",
+                "Africa"
+              ],
+              "semantic_type": "continent name (string)"
+            }
+          ],
+          "description": "The continent_mapping table lists countries or territories alongside their associated continent names.",
+          "retrieval_score": 0.30855894088745117,
+          "sample_rows": [
+            {
+              "continent": "North America",
+              "country": "Russia"
+            },
+            {
+              "continent": "Asia",
+              "country": "Germany"
+            },
+            {
+              "continent": "Oceania",
+              "country": "Australia"
+            }
+          ],
+          "table_name": "continent_mapping"
+        }
+      ],
+      "natural_language_query": "Show a table containing a country's education situation",
+      "suggestion_count": 6
+    },
+    "instructions": "Generate candidate query tables for a natural language data integration request.\nUse only the provided data lake context. Return the requested number of suggestions.\nEach suggestion should have a clear table name and exactly three example rows.\nEach row is a list of cells; each cell has the human-readable column name and the\nexample value as strings. Use the same column set across the three rows of one\nsuggestion. Include semantic types for columns.\nEvery column must be populated with a real, non-empty example value in every row,\ndrawn from the provided data lake context. Never emit blank, null, \"N/A\", or\nplaceholder values. If you cannot supply a genuine value for a column from the\ncontext, omit that column entirely rather than leaving it empty.\n",
+    "model": "gpt-4.1",
+    "parameters": {
+      "ann_topk": 25,
+      "suggestion_count": 6
+    },
+    "response_schema": {
+      "$defs": {
+        "QueryTableCell": {
+          "properties": {
+            "column": {
+              "title": "Column",
+              "type": "string"
+            },
+            "value": {
+              "default": "",
+              "title": "Value",
+              "type": "string"
+            }
+          },
+          "required": [
+            "column"
+          ],
+          "title": "QueryTableCell",
+          "type": "object"
+        },
+        "QueryTableColumn": {
+          "properties": {
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "semantic_type": {
+              "default": "",
+              "title": "Semantic Type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "title": "QueryTableColumn",
+          "type": "object"
+        },
+        "QueryTableRow": {
+          "properties": {
+            "cells": {
+              "items": {
+                "$ref": "#/$defs/QueryTableCell"
+              },
+              "title": "Cells",
+              "type": "array"
+            }
+          },
+          "title": "QueryTableRow",
+          "type": "object"
+        },
+        "QueryTableSuggestion": {
+          "properties": {
+            "columns": {
+              "items": {
+                "$ref": "#/$defs/QueryTableColumn"
+              },
+              "title": "Columns",
+              "type": "array"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "rows": {
+              "items": {
+                "$ref": "#/$defs/QueryTableRow"
+              },
+              "title": "Rows",
+              "type": "array"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "title": "QueryTableSuggestion",
+          "type": "object"
+        }
+      },
+      "properties": {
+        "suggestions": {
+          "items": {
+            "$ref": "#/$defs/QueryTableSuggestion"
+          },
+          "title": "Suggestions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "suggestions"
+      ],
+      "title": "QueryTableSuggestionsResponse",
+      "type": "object"
+    },
+    "schema_version": "phase2-v1",
+    "task_type": "initial_query_table_suggestions",
+    "temperature": 0.0
+  }
+}
